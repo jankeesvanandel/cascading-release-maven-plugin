@@ -1,0 +1,22 @@
+{
+    "name": "Example releasable module",
+    "parentPathFromBase": "parent",
+    "pathToBase": "../../",
+    "dependenciesSorted": [
+        {
+            "groupId": "nl.jkva.api",
+            "artifactId": "api1",
+            "pathFromBase": "api/api1"
+        },
+        {
+            "groupId": "nl.jkva.api",
+            "artifactId": "api2",
+            "pathFromBase": "api/api2"
+        },
+        {
+            "groupId": "nl.jkva.api",
+            "artifactId": "api3",
+            "pathFromBase": "api/api3"
+        }
+    ]
+}
