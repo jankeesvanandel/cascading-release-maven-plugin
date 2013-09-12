@@ -2,6 +2,7 @@
     "name": "Example releasable module",
     "parentPathFromBase": "parent",
     "pathToBase": "../../",
+    "earPathFromBase": "runtime/dist-ear",
     "dependenciesSorted": [
         {
             "groupId": "nl.jkva.api",

@@ -9,6 +9,8 @@ import com.github.fge.jsonschema.util.JsonLoader;
 import com.google.gson.Gson;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.BuildPluginManager;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -20,11 +22,9 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.IOUtil;
 import org.codehaus.plexus.util.StringUtils;
+import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
-import java.io.Console;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -51,6 +51,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
     private ProcessFactory processFactory;
     private ConfigFile config;
+    private File projectBase;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         config = readConfigFile();
@@ -60,29 +61,35 @@ public class CascadingReleaseMojo extends AbstractMojo {
             validateConfigFile(config);
             validateCurrentWorkspace();
             releaseParentIfNeeded();
-            releaseDependencies();
+            releaseDependencies(project);
+            updateProjectsWithLatestDependencyVersions();
+            releaseEar();
         } catch (IOException e) {
             throw new MojoFailureException("IO error", e);
         }
     }
 
-    private void validateSystemSettings() throws MojoFailureException {
-        validateHomeDir("M2_HOME", "mvn.bat", "Maven");
-        validateHomeDir("SVN_HOME", "svn.exe", "SubVersion");
+    private void releaseEar() throws MojoFailureException {
+        MavenInvoker mavenInvoker = processFactory.createMavenInvoker(config.getEarPathFromBase());
+
+        int exitCode = mavenInvoker.execute(
+                "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+        getLog().info("EAR release exited with code " + exitCode);
     }
 
-    private void validateHomeDir(final String envVariable, final String executable, final String name) throws MojoFailureException {
+    private void validateSystemSettings() throws MojoFailureException {
+        validateEnvVars("M2_BIN", "Maven");
+        validateEnvVars("SVN_BIN", "SubVersion");
+    }
+
+    private void validateEnvVars(final String envVariable, final String name) throws MojoFailureException {
         String variable = System.getenv(envVariable);
         if (StringUtils.isBlank(variable)) {
             throw new MojoFailureException("Environment variable "+envVariable+" not defined");
         }
-        File path = new File(variable, "bin");
-        if (!path.exists() || !path.isDirectory() || !path.canRead()) {
-            throw new MojoFailureException("Environment variable "+envVariable+ " does not point to a valid " + name + " home (/bin dir does not exist or is not accessible)");
-        }
-        File exec = new File(path, executable);
+        File exec = new File(variable);
         if (!exec.exists() || !exec.canExecute()) {
-            throw new MojoFailureException("Environment variable "+envVariable+ " does not point to a valid " + name + " home (/bin/" + executable +" does not exist or is not executable)");
+            throw new MojoFailureException("Environment variable "+envVariable+ " does not point to a valid " + name + " executable)" + exec);
         }
     }
 
@@ -117,7 +124,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
             String fileContents = IOUtil.toString(new FileInputStream(configFile));
             validateConfigFileWithJsonSchema(fileContents);
             config = new Gson().fromJson(fileContents, ConfigFile.class);
-            File projectBase = new File(project.getBasedir(), config.getPathToBase());
+            this.projectBase = new File(project.getBasedir(), config.getPathToBase());
             processFactory = new ProcessFactory(getLog(), projectBase);
         } catch (IOException e) {
             throw new MojoFailureException("Invalid configfile, valid JSON?", e);
@@ -175,33 +182,53 @@ public class CascadingReleaseMojo extends AbstractMojo {
                 MavenInvoker mavenInvoker = processFactory.createMavenInvoker(moduleIdentifier.getPathFromBase());
                 //TODO: fix this TODO
                 int exitCode = mavenInvoker.execute(
-                        "versions:update-parent versions:commit scm:checkin -Dmessage=\"Update parent to TODO LATEST release version\"");
+                        "versions:update-parent versions:commit scm:checkin -Dmessage=\"Update_parent_to_TODO_LATEST_release_version\"");
                 getLog().info("Update parent for " + moduleIdentifier.getGroupId() + ":" + moduleIdentifier.getArtifactId() + ". Exit code=" + exitCode);
             }
         }
     }
 
-    private void releaseDependencies() throws MojoFailureException {
-        Set<Artifact> dependencies = project.getDependencyArtifacts();
+    /**
+     * Update all child poms.
+     * Commit the child poms.
+     */
+    private void updateProjectsWithLatestDependencyVersions() throws IOException, MojoFailureException {
+        for (Identifier moduleIdentifier : config.getDependenciesSorted()) {
+            if (moduleIdentifier.getSubModuleOf() == null) {
+                MavenInvoker mavenInvoker = processFactory.createMavenInvoker(moduleIdentifier.getPathFromBase());
+                //TODO: fix this TODO
+                int exitCode = mavenInvoker.execute(
+                        "versions:use-releases versions:commit scm:checkin -Dmessage=\"Update_" +
+                                moduleIdentifier.getArtifactId() + "_to_TODO_LATEST_release_version\"");
+                getLog().info("Update dependency for " + moduleIdentifier.getGroupId() + ":" + moduleIdentifier.getArtifactId() + ". Exit code=" + exitCode);
+            }
+        }
+    }
+
+    private void releaseDependencies(MavenProject mavenProject) throws MojoFailureException, IOException {
+        Set<Artifact> dependencies = mavenProject.getDependencyArtifacts();
         Set<Identifier> releasedParentModules = new HashSet<Identifier>();
-        for (Artifact dependency : dependencies) {
-            if (dependency.isSnapshot()) {
-                Identifier moduleIdentifier = getReleasableModule(dependency);
-                if (moduleIdentifier != null) {
-                    if (moduleIdentifier.getSubModuleOf() == null) {
-                        String groupId = moduleIdentifier.getGroupId();
-                        String artifactId = moduleIdentifier.getArtifactId();
-                        releaseModule(groupId + ":" + artifactId, moduleIdentifier.getPathFromBase());
-                    } else if (!isParentForSubModuleReleased(moduleIdentifier.getSubModuleOf(), releasedParentModules)) {
-                        String pathFromBase = new File(moduleIdentifier.getPathFromBase(), "..").getPath();
-                        String groupId = moduleIdentifier.getSubModuleOf().getGroupId();
-                        String artifactId = moduleIdentifier.getSubModuleOf().getArtifactId();
-                        releaseModule(groupId + ":" + artifactId, pathFromBase);
+        if (dependencies != null) {
+            for (Artifact dependency : dependencies) {
+                if (dependency.isSnapshot()) {
+                    Identifier moduleIdentifier = getReleasableModule(dependency);
+                    if (moduleIdentifier != null) {
+                        if (moduleIdentifier.getSubModuleOf() == null) {
+                            String groupId = moduleIdentifier.getGroupId();
+                            String artifactId = moduleIdentifier.getArtifactId();
+                            releaseModule(groupId + ":" + artifactId, moduleIdentifier.getPathFromBase());
+                        } else if (!isParentForSubModuleReleased(moduleIdentifier.getSubModuleOf(), releasedParentModules)) {
+                            String pathFromBase = new File(moduleIdentifier.getPathFromBase(), "..").getPath();
+                            String groupId = moduleIdentifier.getSubModuleOf().getGroupId();
+                            String artifactId = moduleIdentifier.getSubModuleOf().getArtifactId();
+                            releaseModule(groupId + ":" + artifactId, pathFromBase);
+                        }
+                        // release module
+                        // update dependency version
+                        updateProjectsWithLatestDependencyVersions();
+                    } else {
+                        throw new MojoFailureException(String.format("Dependency to non-project SNAPSHOT: %s:%s:%s. Release this manually and try again", dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion()));
                     }
-                    // release module
-                    // update dependency version
-                } else {
-                    throw new MojoFailureException(String.format("Dependency to non-project SNAPSHOT: %s:%s:%s. Release this manually and try again", dependency.getGroupId(), dependency.getArtifactId(), dependency.getVersion()));
                 }
             }
         }
@@ -235,9 +262,24 @@ public class CascadingReleaseMojo extends AbstractMojo {
             throw new MojoFailureException("Aborted by user");
         }
         MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
-        int exitCode = mavenInvoker.execute(
-                "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
-        getLog().info(moduleName + " release exited with code " + exitCode);
+        InputStream reader;
+        try {
+            reader = new FileInputStream(new File(new File(projectBase, path), "pom.xml").getCanonicalFile());
+            Model mavenModel = new MavenXpp3Reader().read(reader);
+            MavenProject mavenProject = new MavenProject(mavenModel);
+
+            releaseDependencies(mavenProject);
+
+            int exitCode = mavenInvoker.execute(
+                    "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+            getLog().info(moduleName + " release exited with code " + exitCode);
+        } catch (FileNotFoundException e) {
+            throw new MojoFailureException(e.getMessage(), e);
+        } catch (XmlPullParserException e) {
+            throw new MojoFailureException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new MojoFailureException(e.getMessage(), e);
+        }
     }
 
 

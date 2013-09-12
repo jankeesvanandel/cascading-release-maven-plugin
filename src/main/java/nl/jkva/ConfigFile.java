@@ -8,6 +8,7 @@ public class ConfigFile {
     private String parentPathFromBase;
     private Identifier[] dependenciesSorted;
     private String pathToBase;
+    private String earPathFromBase;
 
     public String getName() {
         return name;
@@ -39,5 +40,13 @@ public class ConfigFile {
 
     public void setPathToBase(String pathToBase) {
         this.pathToBase = pathToBase;
+    }
+
+    public String getEarPathFromBase() {
+        return earPathFromBase;
+    }
+
+    public void setEarPathFromBase(String earPathFromBase) {
+        this.earPathFromBase = earPathFromBase;
     }
 }

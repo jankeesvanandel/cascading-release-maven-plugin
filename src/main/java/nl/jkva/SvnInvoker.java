@@ -16,8 +16,8 @@ public class SvnInvoker extends Invoker<SvnInvoker> {
 
     @Override
     protected Process doExecute(String arguments, ProcessBuilder processBuilder) throws IOException {
-        String svnHome = processBuilder.environment().get("SVN_HOME");
-        String exec = new File(new File(svnHome, "bin"), "svn.exe").getCanonicalPath();
+        String svnBin = processBuilder.environment().get("SVN_BIN");
+        String exec = new File(svnBin).getCanonicalPath();
         List<String> goalsList = getProcessArguments(arguments, exec);
         processBuilder.command(goalsList);
         File canonicalWorkDir = workDir.getCanonicalFile();
