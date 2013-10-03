@@ -156,6 +156,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
     private void releaseParentIfNeeded() throws MojoFailureException, MojoExecutionException, IOException {
         final Artifact parentArtifact = project.getParentArtifact();
         if (parentArtifact.isSnapshot()) {
+            updateChildProjectsWithLatestParentVersion();
             releaseParentPom();
             updateChildProjectsWithLatestParentVersion();
         }
