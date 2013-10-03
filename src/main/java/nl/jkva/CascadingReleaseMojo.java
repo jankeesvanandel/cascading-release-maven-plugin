@@ -154,8 +154,10 @@ public class CascadingReleaseMojo extends AbstractMojo {
      * Future idea: validate if all modules are up to date (point to the latest snapshot)???
      */
     private void releaseParentIfNeeded() throws MojoFailureException, MojoExecutionException, IOException {
-        final Artifact parentArtifact = project.getParentArtifact();
+        System.out.println(project.getParentArtifact().getVersion());
         updateChildProjectsWithLatestParentVersion();
+        System.out.println(project.getParentArtifact().getVersion());
+        final Artifact parentArtifact = project.getParentArtifact();
         if (parentArtifact.isSnapshot()) {
             releaseParentPom();
             updateChildProjectsWithLatestParentVersion();
