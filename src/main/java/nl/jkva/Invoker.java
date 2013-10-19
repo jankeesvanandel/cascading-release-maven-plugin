@@ -1,12 +1,19 @@
 package nl.jkva;
 
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.logging.Log;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugin.logging.Log;
+
+import com.google.common.collect.ImmutableList;
 
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
@@ -15,21 +22,17 @@ public abstract class Invoker<T extends Invoker> {
     private static final String ERR_MSG = "Error running maven command: ";
     final Log log;
     final File workDir;
-    private List<OutputListener> outputListeners = new ArrayList<OutputListener>();
+    private StreamGobbler outputGobbler;
+    private StreamGobbler errorGobbler;
 
     public Invoker(Log log, File workDir) {
         this.log = log;
         this.workDir = workDir;
     }
 
-    public T addOutputListener(OutputListener outputListener) {
-        outputListeners.add(outputListener);
-        return (T) this;
-    }
-
     protected void setupListeners(Process releaseProcess) {
-        StreamGobbler errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), "ERROR");
-        StreamGobbler outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), "OUTPUT");
+        outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog());
+        errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog());
         outputGobbler.start();
         errorGobbler.start();
     }
@@ -47,15 +50,14 @@ public abstract class Invoker<T extends Invoker> {
             throw new RuntimeException(e);
         }
         goalsList.addAll(Arrays.asList(goalsSplitted));
-        getLog().info("GOALS:::: " + goalsList);
+        getLog().info(" - Goals: " + goalsList);
         return goalsList;
     }
 
-    //TODO: output to separate file per invocation, and only log the summary in the main maven output.
-    // Maybe the Log property can also be removed then.
     public int execute(String goals) throws MojoFailureException {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder();
+            processBuilder.directory(workDir);
 
             Process process = doExecute(goals, processBuilder);
             setupListeners(process);
@@ -78,13 +80,21 @@ public abstract class Invoker<T extends Invoker> {
 
     protected abstract Process doExecute(String arguments, ProcessBuilder processBuilder) throws IOException;
 
-    private class StreamGobbler extends Thread {
-        InputStream is;
-        String type;
+    public ImmutableList<String> getOutput() {
+        return ImmutableList.<String>builder() //
+                .addAll(outputGobbler.getOutput()) //
+                .addAll(errorGobbler.getOutput()).build();
+    }
 
-        private StreamGobbler(InputStream is, String type) {
+    private static class StreamGobbler extends Thread {
+        private final InputStream is;
+        private final Log log;
+        private final List<String> output = new ArrayList<String>();
+        private final AtomicBoolean done = new AtomicBoolean();
+
+        private StreamGobbler(InputStream is, Log log) {
             this.is = is;
-            this.type = type;
+            this.log = log;
         }
 
         @Override
@@ -93,15 +103,28 @@ public abstract class Invoker<T extends Invoker> {
                 InputStreamReader isr = new InputStreamReader(is);
                 BufferedReader br = new BufferedReader(isr);
                 String line;
-                while ((line = br.readLine()) != null)
-                    if (type.equals("OUTPUT")) {
-                        getLog().info(line);
-                    } else {
-                        getLog().error(line);
-                    }
-            }
-            catch (IOException ioe) {
+                while ((line = br.readLine()) != null) {
+                    output.add(line);
+                    log.info(line);
+                }
+            } catch (IOException ioe) {
                 ioe.printStackTrace();
+            } finally {
+                done.set(true);
+            }
+        }
+
+        public Iterable<String> getOutput() {
+            try {
+                while (!done.get()) {
+                    log.info("Not yet done...");
+                    Thread.sleep(50);
+                }
+    
+                return output;
+            } catch (InterruptedException e) {
+                Thread.interrupted();
+                throw new RuntimeException(e);
             }
         }
     }

@@ -13,6 +13,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <aetherVersion>0.9.0.M3</aetherVersion>
     </properties>
 
     <dependencies>
@@ -28,26 +29,31 @@
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-core</artifactId>
             <version>3.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
             <version>3.1.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
             <version>3.1.0</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
             <version>3.0.10</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.sonatype.sisu</groupId>
             <artifactId>sisu-inject-plexus</artifactId>
             <version>2.3.0</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.fge</groupId>
@@ -57,7 +63,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>13.0.1</version>
+            <version>15.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.plugin-tools</groupId>
@@ -72,6 +78,7 @@
             <groupId>org.twdata.maven</groupId>
             <artifactId>mojo-executor</artifactId>
             <version>2.0.1</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -90,13 +97,6 @@
                         <id>mojo-descriptor</id>
                         <goals>
                             <goal>descriptor</goal>
-                        </goals>
-                    </execution>
-                    <!-- if you want to generate help goal -->
-                    <execution>
-                        <id>help-goal</id>
-                        <goals>
-                            <goal>helpmojo</goal>
                         </goals>
                     </execution>
                 </executions>
