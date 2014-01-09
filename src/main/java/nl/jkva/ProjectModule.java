@@ -1,5 +1,7 @@
 package nl.jkva;
 
+import org.apache.maven.project.MavenProject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,10 +13,11 @@ public class ProjectModule {
     private String groupId;
     private String artifactId;
     private String path;
-    private List<ProjectModule> modules;
+    private List<ProjectModule> modules = new ArrayList<ProjectModule>();
     private ProjectModule parent;
     private ProjectModule releasableParent;
     private boolean releasableModuleParent = false;
+    private MavenProject relatedMavenProject;
 
     private String highestVersionInProject;
     private String releasedVersion;
@@ -56,9 +59,6 @@ public class ProjectModule {
     }
 
     public List<ProjectModule> getModules() {
-        if (modules == null) {
-            return new ArrayList<ProjectModule>();
-        }
         return modules;
     }
 
@@ -124,5 +124,13 @@ public class ProjectModule {
         int result = groupId.hashCode();
         result = 31 * result + artifactId.hashCode();
         return result;
+    }
+
+    public MavenProject getRelatedMavenProject() {
+        return relatedMavenProject;
+    }
+
+    public void setRelatedMavenProject(MavenProject relatedMavenProject) {
+        this.relatedMavenProject = relatedMavenProject;
     }
 }

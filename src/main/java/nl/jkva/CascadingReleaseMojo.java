@@ -2,6 +2,7 @@ package nl.jkva;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -32,6 +33,9 @@ public class CascadingReleaseMojo extends AbstractMojo {
     @Parameter(property = "basedir", required = true, defaultValue = "${basedir}")
     private File basedir;
 
+    @Parameter(defaultValue = "${reactorProjects}", readonly = true, required = true)
+    private List<MavenProject> reactorProjects;
+
     @Component
     private MavenProject project;
 
@@ -46,14 +50,11 @@ public class CascadingReleaseMojo extends AbstractMojo {
     private ConfigUtil configUtil;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-        ///TODO: check if this can be removed
-        if (!Util.isReactorRootProject(session, basedir)) {
-            return;
-        }
-
         ConfigFileReader configFileReader = new ConfigFileReader(getLog(), project);
-        config = configFileReader.readConfigFile(cfgFile);
-        configFileReader.outputConfig(config);
+        config = configFileReader.readConfigFile(cfgFile, reactorProjects);
+        String s = configFileReader.outputConfig(config);
+
+        if (true) throw new MojoFailureException(s);
 
         processFactory = new ProcessFactory(getLog(), config.getProjectBase());
         configUtil = new ConfigUtil(config, getLog(), session);
@@ -66,14 +67,10 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
             CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, session, getLog(), configUtil);
 
-            //TODO: Create loop to release multiple EARs (and websphere plugins etc)
-            if (true) {
-                MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
-                cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
-                final ProjectModule distModule = configUtil.getProjectModuleFromMavenProject(releasableProject);
-                cascadingDependencyReleaseHelper.releaseModuleAndUpdateDependencies(distModule);
-            }
-
+            MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
+            cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
+            final ProjectModule distModule = configUtil.getProjectModuleFromMavenProject(releasableProject);
+            cascadingDependencyReleaseHelper.releaseModuleAndUpdateDependencies(distModule);
         } catch (IOException e) {
             throw new MojoFailureException("IO error", e);
         }

@@ -119,10 +119,10 @@ public class ConfigUtil {
         return getFlatListOfAllModules(config.getModules());
     }
 
-    private List<ProjectModule> getFlatListOfAllModules(List<ProjectModule> modules) {
+    public static List<ProjectModule> getFlatListOfAllModules(List<ProjectModule> modules) {
         List<ProjectModule> ret = new ArrayList<ProjectModule>();
-        ret.addAll(modules);
         for (ProjectModule module : modules) {
+            ret.add(module);
             ret.addAll(getFlatListOfAllModules(module.getModules()));
         }
         return ret;

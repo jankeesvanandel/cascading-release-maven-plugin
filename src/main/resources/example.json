@@ -1,57 +1,5 @@
 {
     "name": "Example releasable module",
-    "parentPathFromBase": "parent",
-    "distPathFromBase": "runtime",
-    "project": [
-        {
-            "groupId": "nl.jkva.api",
-            "artifactId": "api1",
-            "path": "api/api1"
-        },
-        {
-            "groupId": "nl.jkva.api",
-            "artifactId": "api2",
-            "path": "api/api2"
-        },
-        {
-            "groupId": "nl.jkva.api",
-            "artifactId": "api3",
-            "path": "api/api3"
-        },
-        {
-            "groupId": "nl.jkva.runtime",
-            "artifactId": "runtime",
-            "path": "runtime",
-            "reactorPom": true,
-            "modules": [
-                {
-                    "groupId": "nl.jkva.runtime.engine",
-                    "artifactId": "engine",
-                    "path": "engine",
-                    "modules": [
-                        {
-                            "groupId": "nl.jkva.runtime.engine",
-                            "artifactId": "engine-jar",
-                            "path": "engine-jar"
-                        },
-                        {
-                            "groupId": "nl.jkva.runtime.engine",
-                            "artifactId": "engine-war",
-                            "path": "engine-war"
-                        },
-                        {
-                            "groupId": "nl.jkva.runtime.engine",
-                            "artifactId": "engine-properties",
-                            "path": "engine-properties"
-                        }
-                    ]
-                },
-                {
-                    "groupId": "nl.jkva.runtime.monitor",
-                    "artifactId": "monitor",
-                    "path": "monitor"
-                }
-            ]
-        }
-    ]
+    "parentPath": "parent",
+    "distPath": "release"
 }
