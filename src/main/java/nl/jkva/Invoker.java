@@ -18,23 +18,27 @@ import com.google.common.collect.ImmutableList;
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
-public abstract class Invoker<T extends Invoker> {
+public abstract class Invoker {
     private static final String ERR_MSG = "Error running maven command: ";
     final Log log;
     final File workDir;
+    private final boolean grabLogs;
     private StreamGobbler outputGobbler;
     private StreamGobbler errorGobbler;
 
-    public Invoker(Log log, File workDir) {
+    public Invoker(Log log, File workDir, boolean grabLogs) {
         this.log = log;
         this.workDir = workDir;
+        this.grabLogs = grabLogs;
     }
 
     protected void setupListeners(Process releaseProcess) {
-        outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog());
-        errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog());
-        outputGobbler.start();
-        errorGobbler.start();
+        if (grabLogs) {
+            outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog());
+            errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog());
+            outputGobbler.start();
+            errorGobbler.start();
+        }
     }
 
     protected Log getLog() {
@@ -105,7 +109,7 @@ public abstract class Invoker<T extends Invoker> {
                 String line;
                 while ((line = br.readLine()) != null) {
                     output.add(line);
-                    log.info(line);
+                    //log.info(line);
                 }
             } catch (IOException ioe) {
                 ioe.printStackTrace();
@@ -117,7 +121,7 @@ public abstract class Invoker<T extends Invoker> {
         public Iterable<String> getOutput() {
             try {
                 while (!done.get()) {
-                    log.info("Not yet done...");
+                    log.debug("Not yet done...");
                     Thread.sleep(50);
                 }
     

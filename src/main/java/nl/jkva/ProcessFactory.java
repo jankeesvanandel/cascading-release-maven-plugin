@@ -20,12 +20,7 @@ public class ProcessFactory {
     public MavenInvoker createMavenInvoker(String relativeWorkingDir) {
         File workDir = new File(projectBase, relativeWorkingDir);
 
-        return new MavenInvoker(this.log, workDir);
+        return new MavenInvoker(this.log, workDir, true);
     }
 
-    public SvnInvoker createSvnInvoker(String relativeWorkingDir) {
-        File workDir = new File(projectBase, relativeWorkingDir);
-
-        return new SvnInvoker(this.log, workDir);
-    }
 }

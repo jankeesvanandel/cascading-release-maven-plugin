@@ -8,10 +8,10 @@ import java.util.List;
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
-public class MavenInvoker extends Invoker<MavenInvoker> {
+public class MavenInvoker extends Invoker {
 
-    public MavenInvoker(Log log, final File workDir) {
-        super(log, workDir);
+    public MavenInvoker(Log log, final File workDir, final boolean grabLogs) {
+        super(log, workDir, grabLogs);
     }
 
     @Override

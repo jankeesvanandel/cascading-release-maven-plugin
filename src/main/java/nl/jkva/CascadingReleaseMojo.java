@@ -2,6 +2,7 @@ package nl.jkva;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.maven.execution.MavenSession;
@@ -54,14 +55,13 @@ public class CascadingReleaseMojo extends AbstractMojo {
         config = configFileReader.readConfigFile(cfgFile, reactorProjects);
         String s = configFileReader.outputConfig(config);
 
-        if (true) throw new MojoFailureException(s);
-
         processFactory = new ProcessFactory(getLog(), config.getProjectBase());
         configUtil = new ConfigUtil(config, getLog(), session);
 
         try {
             validateSystemSettings();
             validateCurrentWorkspace();
+
             ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil);
             parentReleaseHelper.releaseParentIfNeeded();
 
@@ -78,7 +78,6 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
     private void validateSystemSettings() throws MojoFailureException {
         validateEnvVars("M2_BIN", "Maven");
-        validateEnvVars("SVN_BIN", "SubVersion");
     }
 
     private void validateEnvVars(final String envVariable, final String name) throws MojoFailureException {
@@ -99,18 +98,37 @@ public class CascadingReleaseMojo extends AbstractMojo {
      * svn up
      */
     private void validateCurrentWorkspace() throws MojoFailureException {
-        final SvnInvoker svnUpInvoker = processFactory.createSvnInvoker("");
-        svnUpInvoker.execute("up");
+        final MavenInvoker scmUpdateInvoker = processFactory.createMavenInvoker("");
+        scmUpdateInvoker.execute("scm:update");
 
-        final SvnInvoker svnStInvoker = processFactory.createSvnInvoker("");
-        svnStInvoker.execute("st");
-        final ImmutableList<String> output = svnStInvoker.getOutput();
-        for (String s : output) {
-            getLog().info(s);
+        final MavenInvoker scmStatusInvoker = processFactory.createMavenInvoker("");
+        scmStatusInvoker.execute("scm:status");
+        final ImmutableList<String> output = scmStatusInvoker.getOutput();
+        final List<String> statusLines = extractScmStatusOutput(output);
+        for (String statusLine : statusLines) {
+            getLog().info("Local changes: " + statusLine);
         }
-        if (!output.isEmpty()) {
+        if (!statusLines.isEmpty()) {
             throw new MojoFailureException("You have local changes. Release aborted");
         }
+    }
+
+    private List<String> extractScmStatusOutput(ImmutableList<String> output) {
+        final List<String> statusLines = new ArrayList<String>();
+        boolean started = false;
+        for (String line : output) {
+            getLog().debug("line: " + line);
+            if (started) {
+                if (line.startsWith("[INFO] --------------------------")) {
+                    break;
+                }
+                statusLines.add(line);
+            }
+            if (line.startsWith("[INFO] Working directory: ")) {
+                started = true;
+            }
+        }
+        return statusLines;
     }
 
 }
