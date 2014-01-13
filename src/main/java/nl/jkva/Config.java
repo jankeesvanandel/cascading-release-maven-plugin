@@ -13,6 +13,7 @@ public class Config {
     private List<ProjectModule> modules = new ArrayList<ProjectModule>();
     private String distPath;
     private File projectBase;
+    private File basedir;
 
     public String getName() {
         return name;
@@ -52,5 +53,13 @@ public class Config {
 
     public void setProjectBase(File projectBase) {
         this.projectBase = projectBase;
+    }
+
+    public File getBasedir() {
+        return basedir;
+    }
+
+    public void setBasedir(File basedir) {
+        this.basedir = basedir;
     }
 }

@@ -22,23 +22,21 @@ public abstract class Invoker {
     private static final String ERR_MSG = "Error running maven command: ";
     final Log log;
     final File workDir;
-    private final boolean grabLogs;
+    private final boolean redirectLogs;
     private StreamGobbler outputGobbler;
     private StreamGobbler errorGobbler;
 
-    public Invoker(Log log, File workDir, boolean grabLogs) {
+    public Invoker(Log log, File workDir, boolean redirectLogs) {
         this.log = log;
         this.workDir = workDir;
-        this.grabLogs = grabLogs;
+        this.redirectLogs = redirectLogs;
     }
 
     protected void setupListeners(Process releaseProcess) {
-        if (grabLogs) {
-            outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog());
-            errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog());
-            outputGobbler.start();
-            errorGobbler.start();
-        }
+        outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog(), redirectLogs);
+        errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog(), redirectLogs);
+        outputGobbler.start();
+        errorGobbler.start();
     }
 
     protected Log getLog() {
@@ -93,12 +91,14 @@ public abstract class Invoker {
     private static class StreamGobbler extends Thread {
         private final InputStream is;
         private final Log log;
+        private final boolean redirectLogs;
         private final List<String> output = new ArrayList<String>();
         private final AtomicBoolean done = new AtomicBoolean();
 
-        private StreamGobbler(InputStream is, Log log) {
+        private StreamGobbler(InputStream is, Log log, boolean redirectLogs) {
             this.is = is;
             this.log = log;
+            this.redirectLogs = redirectLogs;
         }
 
         @Override
@@ -109,7 +109,9 @@ public abstract class Invoker {
                 String line;
                 while ((line = br.readLine()) != null) {
                     output.add(line);
-                    //log.info(line);
+                    if (redirectLogs) {
+                        log.info(line);
+                    }
                 }
             } catch (IOException ioe) {
                 ioe.printStackTrace();

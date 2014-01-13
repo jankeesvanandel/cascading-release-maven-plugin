@@ -25,17 +25,17 @@ import com.google.common.collect.ImmutableList;
 @Mojo(name = "cascading-release", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, inheritByDefault = false, aggregator = true)
 public class CascadingReleaseMojo extends AbstractMojo {
 
-    @Parameter(property = "version", required = true)
-    private String version;
-
     @Parameter(property = "configFile", required = true, defaultValue = "release.json")
     private File cfgFile;
+
+    @Parameter(defaultValue = "${reactorProjects}", readonly = true, required = true)
+    private List<MavenProject> reactorProjects;
 
     @Parameter(property = "basedir", required = true, defaultValue = "${basedir}")
     private File basedir;
 
-    @Parameter(defaultValue = "${reactorProjects}", readonly = true, required = true)
-    private List<MavenProject> reactorProjects;
+    @Parameter(property = "outputFile", defaultValue = "${project.build.directory}/release-summary.txt", required = true)
+    private File outputFile;
 
     @Component
     private MavenProject project;
@@ -49,10 +49,12 @@ public class CascadingReleaseMojo extends AbstractMojo {
     private ProcessFactory processFactory;
     private Config config;
     private ConfigUtil configUtil;
+    private ReleasedModuleTracker releasedModuleTracker = new ReleasedModuleTracker();
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         ConfigFileReader configFileReader = new ConfigFileReader(getLog(), project);
         config = configFileReader.readConfigFile(cfgFile, reactorProjects);
+        config.setBasedir(basedir);
         String s = configFileReader.outputConfig(config);
 
         processFactory = new ProcessFactory(getLog(), config.getProjectBase());
@@ -62,15 +64,17 @@ public class CascadingReleaseMojo extends AbstractMojo {
             validateSystemSettings();
             validateCurrentWorkspace();
 
-            ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil);
+            ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil, releasedModuleTracker);
             parentReleaseHelper.releaseParentIfNeeded();
 
-            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, session, getLog(), configUtil);
+            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, session, getLog(), configUtil, releasedModuleTracker);
 
             MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
             cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
             final ProjectModule distModule = configUtil.getProjectModuleFromMavenProject(releasableProject);
             cascadingDependencyReleaseHelper.releaseModuleAndUpdateDependencies(distModule);
+
+            releasedModuleTracker.writeToFile(outputFile);
         } catch (IOException e) {
             throw new MojoFailureException("IO error", e);
         }
