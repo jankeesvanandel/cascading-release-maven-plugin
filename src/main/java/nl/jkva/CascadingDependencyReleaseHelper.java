@@ -150,7 +150,6 @@ public class CascadingDependencyReleaseHelper {
             releasedModule.setReleasedVersion(releasedVersion);
         }
         log.info(createProjectIdentifier(module) + " release exited with code " + exitCode);
-        PromptUtil.prompt("Delay...");
         return flatListOfAllModules;
     }
 
@@ -207,10 +206,10 @@ public class CascadingDependencyReleaseHelper {
     private void updateProjectsWithLatestDependencyVersions(List<ProjectModule> releasedModules, String version) throws MojoFailureException {
         log.info("Updating dependent modules for: " + releasedModules);
         for (ProjectModule module : configUtil.getFlatListOfAllModules()) {
-            log.info("Trying: " + module + "...");
+            log.debug("Trying: " + module + "...");
             final MavenProject dependentMavenProject = configUtil.getMavenProjectFromPath(module.getPath());
             if (doesProjectContainReleasedModule(dependentMavenProject, releasedModules)) {
-                log.info("Updating versions...");
+                log.debug("Updating versions...");
                 updateVersionsInProjectForModule(dependentMavenProject, releasedModules, version);
             }
 
@@ -254,9 +253,9 @@ public class CascadingDependencyReleaseHelper {
             final List<Dependency> dependencies = mavenProject.getDependencies();
             for (Dependency dependency : dependencies) {
                 final String dependencyKey = createProjectIdentifier(dependency);
-                log.info(releasedModuleKey + ".equals(" + dependencyKey + ")??? " + releasedModuleKey.equals(dependencyKey));
+                log.debug(releasedModuleKey + ".equals(" + dependencyKey + ")??? " + releasedModuleKey.equals(dependencyKey));
                 if (releasedModuleKey.equals(dependencyKey)) {
-                    log.info("Found dependency to module [" + releasedModuleKey + "]: " + dependencyKey);
+                    log.debug("Found dependency to module [" + releasedModuleKey + "]: " + dependencyKey);
                     return true;
                 }
             }
