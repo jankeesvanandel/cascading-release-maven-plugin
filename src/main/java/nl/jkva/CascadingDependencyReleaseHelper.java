@@ -134,7 +134,7 @@ public class CascadingDependencyReleaseHelper {
         releaseDependencies(mavenProject);
 
         int exitCode = mavenInvoker.execute(
-                "clean install scm:validate release:prepare release:perform --batch-mode -Dauto`VersionSubmodules=true");
+                "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
         final String releasedVersion = getReleasedVersionNumberFromProcess(module, mavenInvoker.getOutput());
         List<ProjectModule> flatListOfAllModules = ConfigUtil.getFlatListOfAllModules(Arrays.asList(module));
         for (ProjectModule releasedModule : flatListOfAllModules) {
