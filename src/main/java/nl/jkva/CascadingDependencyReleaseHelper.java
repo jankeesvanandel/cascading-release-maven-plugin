@@ -1,7 +1,13 @@
 package nl.jkva;
 
+import com.google.common.collect.ImmutableList;
+import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.project.MavenProject;
+
 import java.io.Console;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -10,31 +16,20 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.ibm.jvm.j9.dump.commandconsole.ConsoleUtils;
-import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.project.MavenProject;
-
-import com.google.common.collect.ImmutableList;
-
-import static nl.jkva.ConfigUtil.*;
+import static nl.jkva.ConfigUtil.createProjectIdentifier;
 
 public class CascadingDependencyReleaseHelper {
     private final ProcessFactory processFactory;
     private final Config config;
-    private final MavenSession session;
     private final Log log;
 
     private final Set<ProjectModule> releasedModules = new HashSet<ProjectModule>();
     private final ConfigUtil configUtil;
     private final ReleasedModuleTracker releasedModuleTracker;
 
-    public CascadingDependencyReleaseHelper(ProcessFactory processFactory, Config config, MavenSession session, Log log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
+    public CascadingDependencyReleaseHelper(ProcessFactory processFactory, Config config, Log log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
         this.processFactory = processFactory;
         this.config = config;
-        this.session = session;
         this.log = log;
         this.configUtil = configUtil;
         this.releasedModuleTracker = releasedModuleTracker;
@@ -43,8 +38,6 @@ public class CascadingDependencyReleaseHelper {
     public void releaseDependencies(MavenProject project) throws MojoFailureException {
         log.info("About to release " + project.toString());
         Set<ProjectModule> releasableModules = determineReleasableModules(project);
-
-        updateVersionsInProjectForModule(project, new ArrayList<ProjectModule>(releasedModules), null);
 
         for (ProjectModule module : releasableModules) {
             log.info("Releasing SNAPSHOT module " + module.getArtifactId());
@@ -141,7 +134,7 @@ public class CascadingDependencyReleaseHelper {
         releaseDependencies(mavenProject);
 
         int exitCode = mavenInvoker.execute(
-                "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+                "clean install scm:validate release:prepare release:perform --batch-mode -Dauto`VersionSubmodules=true");
         final String releasedVersion = getReleasedVersionNumberFromProcess(module, mavenInvoker.getOutput());
         List<ProjectModule> flatListOfAllModules = ConfigUtil.getFlatListOfAllModules(Arrays.asList(module));
         for (ProjectModule releasedModule : flatListOfAllModules) {
@@ -237,12 +230,14 @@ public class CascadingDependencyReleaseHelper {
     private String getIncludedArtifactsForVersionPlugin(List<ProjectModule> releasedModules) {
         final StringBuilder sb = new StringBuilder("-Dincludes=");
         String sep = "";
-        for (ProjectModule releasedModule : releasedModules) {
-            sb.append(sep);
-            sb.append(releasedModule.getGroupId());
-            sb.append(":");
-            sb.append(releasedModule.getArtifactId());
-            sep = ",";
+        if (!releasedModules.isEmpty()) {
+            for (ProjectModule releasedModule : releasedModules) {
+                sb.append(sep);
+                sb.append(releasedModule.getGroupId());
+                sb.append(":");
+                sb.append(releasedModule.getArtifactId());
+                sep = ",";
+            }
         }
         return sb.toString();
     }

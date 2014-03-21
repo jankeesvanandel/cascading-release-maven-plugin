@@ -67,7 +67,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
             ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil, releasedModuleTracker);
             parentReleaseHelper.releaseParentIfNeeded();
 
-            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, session, getLog(), configUtil, releasedModuleTracker);
+            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, getLog(), configUtil, releasedModuleTracker);
 
             MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
             cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
