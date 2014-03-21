@@ -18,21 +18,23 @@ import com.google.common.collect.ImmutableList;
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
-public abstract class Invoker<T extends Invoker> {
+public abstract class Invoker {
     private static final String ERR_MSG = "Error running maven command: ";
     final Log log;
     final File workDir;
+    private final boolean redirectLogs;
     private StreamGobbler outputGobbler;
     private StreamGobbler errorGobbler;
 
-    public Invoker(Log log, File workDir) {
+    public Invoker(Log log, File workDir, boolean redirectLogs) {
         this.log = log;
         this.workDir = workDir;
+        this.redirectLogs = redirectLogs;
     }
 
     protected void setupListeners(Process releaseProcess) {
-        outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog());
-        errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog());
+        outputGobbler = new StreamGobbler(releaseProcess.getInputStream(), getLog(), redirectLogs);
+        errorGobbler = new StreamGobbler(releaseProcess.getErrorStream(), getLog(), redirectLogs);
         outputGobbler.start();
         errorGobbler.start();
     }
@@ -89,12 +91,14 @@ public abstract class Invoker<T extends Invoker> {
     private static class StreamGobbler extends Thread {
         private final InputStream is;
         private final Log log;
+        private final boolean redirectLogs;
         private final List<String> output = new ArrayList<String>();
         private final AtomicBoolean done = new AtomicBoolean();
 
-        private StreamGobbler(InputStream is, Log log) {
+        private StreamGobbler(InputStream is, Log log, boolean redirectLogs) {
             this.is = is;
             this.log = log;
+            this.redirectLogs = redirectLogs;
         }
 
         @Override
@@ -105,7 +109,9 @@ public abstract class Invoker<T extends Invoker> {
                 String line;
                 while ((line = br.readLine()) != null) {
                     output.add(line);
-                    log.info(line);
+                    if (redirectLogs) {
+                        log.info(line);
+                    }
                 }
             } catch (IOException ioe) {
                 ioe.printStackTrace();
@@ -117,7 +123,7 @@ public abstract class Invoker<T extends Invoker> {
         public Iterable<String> getOutput() {
             try {
                 while (!done.get()) {
-                    log.info("Not yet done...");
+                    log.debug("Not yet done...");
                     Thread.sleep(50);
                 }
     

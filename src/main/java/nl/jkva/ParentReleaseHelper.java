@@ -23,15 +23,17 @@ public class ParentReleaseHelper {
     private MavenProject project;
     private Log log;
     private ConfigUtil configUtil;
+    private final ReleasedModuleTracker releasedModuleTracker;
 
     public ParentReleaseHelper(ProcessFactory processFactory, Config config, MavenSession session,
-                               MavenProject project, Log log, ConfigUtil configUtil) {
+                               MavenProject project, Log log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
         this.processFactory = processFactory;
         this.config = config;
         this.session = session;
         this.project = project;
         this.log = log;
         this.configUtil = configUtil;
+        this.releasedModuleTracker = releasedModuleTracker;
     }
 
     /**
@@ -57,7 +59,7 @@ public class ParentReleaseHelper {
 
         final Artifact parentArtifact = project.getParentArtifact();
         if (parentArtifact.isSnapshot()) {
-            releaseParent();
+            releaseParent(parentArtifact);
             updateChildProjectsWithLatestParentVersion();
         }
     }
@@ -90,10 +92,15 @@ public class ParentReleaseHelper {
         log.info("All parent versions among modules: " + versionsPerParentPom);
         if (thereIsOnlyOneVersionPerParentArtifact(versionsPerParentPom)) {
             log.info("All modules use the same parent, continuing with release...");
-            return versionsPerParentPom;
         } else {
-            throw new MojoFailureException("Not all modules in the project share the same parent. Release aborted");
+            String cont = PromptUtil.promptWithDefault("Not all modules in the project share the same parent. Continue? (Yn)", "Y");
+            if (cont.equalsIgnoreCase("n")) {
+                throw new MojoFailureException("Not all modules in the project share the same parent. Release aborted");
+            } else {
+                log.info("Continuing with release...");
+            }
         }
+        return versionsPerParentPom;
     }
 
     private boolean thereIsOnlyOneVersionPerParentArtifact(Map<String, Set<String>> versionsPerParentPom) {
@@ -110,17 +117,17 @@ public class ParentReleaseHelper {
         return oneVersionPerArtifact;
     }
 
-    /**
+    /*
      * release the parent pom. first ask the user. then run clean install to make sure all tests pass etc scm:validate
-     * will check the validity of the scm tags TODO: verify what happens if not Future idea: Somehow validate the
-     * distributionmanagement section and nexus authorisations, maybe with a dummy deploy-file command? Goal is to check
-     * that the nexus credentials are there and the password is up to date.
+     * will check the validity of the scm tags
+     * TODO: Future idea: Somehow validate the DistributionManagement section and nexus authorisations, maybe with a
+     * dummy deploy-file command? Goal is to check that the nexus credentials are there and the password is up to date.
      */
-    private void releaseParent() throws MojoFailureException, MojoExecutionException, IOException {
-        releaseModule("Parent", config.getParentPath());
+    private void releaseParent(Artifact parentArtifact) throws MojoFailureException, MojoExecutionException, IOException {
+        releaseModule("Parent", config.getParentPath(), parentArtifact);
     }
 
-    private void releaseModule(final String moduleName, final String path) throws MojoFailureException {
+    private void releaseModule(final String moduleName, final String path, Artifact parentArtifact) throws MojoFailureException {
         Console console = System.console();
         String input = console.readLine(moduleName + " dependency is snapshot. Release? [y]:");
         if (input.equalsIgnoreCase("n")) {
@@ -132,6 +139,7 @@ public class ParentReleaseHelper {
                 mavenInvoker
                     .execute("clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
         log.info(moduleName + " release exited with code " + exitCode);
+        releasedModuleTracker.addReleasedModule(parentArtifact.getGroupId(), parentArtifact.getArtifactId(), parentArtifact.getVersion());
     }
 
     /**
@@ -140,7 +148,7 @@ public class ParentReleaseHelper {
     private void updateChildProjectsWithLatestParentVersion() throws IOException, MojoFailureException {
         for (ProjectModule module : config.getModules()) {
             if (module.getParent() == null) {
-                MavenInvoker mavenInvoker = processFactory.createMavenInvoker(configUtil.getFullPathFromBase(module));
+                MavenInvoker mavenInvoker = processFactory.createMavenInvoker(configUtil.getFullPathFromBase(module, config.getBasedir()));
 
                 // TODO: fix this TODO
                 int exitCode =

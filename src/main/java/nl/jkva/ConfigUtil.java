@@ -65,23 +65,6 @@ public class ConfigUtil {
         }
 
         return ret;
-//
-//        final List<MavenProject> projects = session.getProjects();
-//        for (MavenProject mavenProject : session.getProjects()) {
-//            final String parent = configUtil.normalizeFileSeparators(mavenProject.getFile().getParent());
-//            if (parent.endsWith(configUtil.normalizeFileSeparators(path))) {
-//                return mavenProject;
-//            }
-//        }
-//        for (MavenProject project : projects) {
-//            final String parent = project.getFile().getParent();
-//            final MavenProject p = configUtil.getMavenProjectFromPath(parent);
-//            allModuleDependencies.add(p.getDependencies());
-//        }
-//        for (Dependency dependency : allModuleDependencies) {
-//            log.info(dependency.toString());
-//        }
-//        return allModuleDependencies;
     }
 
     private List<String> createFullPathsForModules(MavenProject project, List<String> modules) {
@@ -119,27 +102,19 @@ public class ConfigUtil {
         return getFlatListOfAllModules(config.getModules());
     }
 
-    private List<ProjectModule> getFlatListOfAllModules(List<ProjectModule> modules) {
+    public static List<ProjectModule> getFlatListOfAllModules(List<ProjectModule> modules) {
         List<ProjectModule> ret = new ArrayList<ProjectModule>();
-        ret.addAll(modules);
         for (ProjectModule module : modules) {
+            ret.add(module);
             ret.addAll(getFlatListOfAllModules(module.getModules()));
         }
         return ret;
     }
 
-    public String getFullPathFromBase(ProjectModule module) {
-        String ret = "", sep = "";
-
-        while (module != null) {
-            String modulePath = module.getPath();
-            modulePath = normalizeFileSeparators(modulePath);
-            ret = modulePath + sep + ret;
-            sep = File.separator;
-            module = module.getParent();
-        }
-
-        return ret;
+    public String getFullPathFromBase(ProjectModule module, File baseDir) {
+        String parent = module.getRelatedMavenProject().getFile().getParent();
+        String replace = parent.toLowerCase().replace(baseDir.getPath().toLowerCase(), "");
+        return replace;
     }
 
     public String normalizeFileSeparators(String pathName) {

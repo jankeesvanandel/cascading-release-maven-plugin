@@ -8,51 +8,14 @@
             "description": "The name of the releasable composition",
             "type": "string"
         },
-        "parentPathFromBase": {
+        "parentPath": {
             "description": "The path to the parent, measured from the base. If the base is the parent, you can enter an empty string",
             "type": "string"
         },
-        "distPathFromBase": {
+        "distPath": {
             "description": "The path to the releasable module from the base of the project. The base is the directory that contains all modules",
             "type": "string"
-        },
-        "modules": {
-            "description": "A sorted list with all modules. The plugin uses the ordering of this list to traverse the modules",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "groupId": {
-                        "description": "The Maven groupId for this dependency",
-                        "type": "string"
-                    },
-                    "artifactId": {
-                        "description": "The Maven artifactId for this dependency",
-                        "type": "string"
-                    },
-                    "path": {
-                        "description": "The path from the parent to this dependency. For a module, it's from its parent, otherwise it's from the base dir",
-                        "type": "string"
-                    },
-                    "subModuleOf": {
-                        "description": "If this dependency is part of a module (parent pom with modules that are released together), specify the releasable parent here",
-                        "type": "object",
-                        "properties": {
-                            "groupId": {
-                                "description": "The Maven groupId for this dependency",
-                                "type": "string"
-                            },
-                            "artifactId": {
-                                "description": "The Maven artifactId for this dependency",
-                                "type": "string"
-                            }
-                        },
-                        "required": ["groupId", "artifactId"]
-                    }
-                },
-                "required": ["groupId", "artifactId", "path"]
-            }
         }
     },
-    "required": ["name", "parentPathFromBase", "dependenciesSorted"]
+    "required": ["name", "parentPath", "distPath"]
 }

@@ -1,6 +1,7 @@
 package nl.jkva;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -9,9 +10,10 @@ import java.util.List;
 public class Config {
     private String name;
     private String parentPath;
-    private List<ProjectModule> modules;
+    private List<ProjectModule> modules = new ArrayList<ProjectModule>();
     private String distPath;
     private File projectBase;
+    private File basedir;
 
     public String getName() {
         return name;
@@ -51,5 +53,13 @@ public class Config {
 
     public void setProjectBase(File projectBase) {
         this.projectBase = projectBase;
+    }
+
+    public File getBasedir() {
+        return basedir;
+    }
+
+    public void setBasedir(File basedir) {
+        this.basedir = basedir;
     }
 }

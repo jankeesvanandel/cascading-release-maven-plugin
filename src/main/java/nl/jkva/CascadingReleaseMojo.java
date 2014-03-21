@@ -2,6 +2,8 @@ package nl.jkva;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
@@ -23,14 +25,17 @@ import com.google.common.collect.ImmutableList;
 @Mojo(name = "cascading-release", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, inheritByDefault = false, aggregator = true)
 public class CascadingReleaseMojo extends AbstractMojo {
 
-    @Parameter(property = "version", required = true)
-    private String version;
-
     @Parameter(property = "configFile", required = true, defaultValue = "release.json")
     private File cfgFile;
 
+    @Parameter(defaultValue = "${reactorProjects}", readonly = true, required = true)
+    private List<MavenProject> reactorProjects;
+
     @Parameter(property = "basedir", required = true, defaultValue = "${basedir}")
     private File basedir;
+
+    @Parameter(property = "outputFile", defaultValue = "${project.build.directory}/release-summary.txt", required = true)
+    private File outputFile;
 
     @Component
     private MavenProject project;
@@ -44,16 +49,13 @@ public class CascadingReleaseMojo extends AbstractMojo {
     private ProcessFactory processFactory;
     private Config config;
     private ConfigUtil configUtil;
+    private ReleasedModuleTracker releasedModuleTracker = new ReleasedModuleTracker();
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-        ///TODO: check if this can be removed
-        if (!Util.isReactorRootProject(session, basedir)) {
-            return;
-        }
-
         ConfigFileReader configFileReader = new ConfigFileReader(getLog(), project);
-        config = configFileReader.readConfigFile(cfgFile);
-        configFileReader.outputConfig(config);
+        config = configFileReader.readConfigFile(cfgFile, reactorProjects);
+        config.setBasedir(basedir);
+        String s = configFileReader.outputConfig(config);
 
         processFactory = new ProcessFactory(getLog(), config.getProjectBase());
         configUtil = new ConfigUtil(config, getLog(), session);
@@ -61,19 +63,18 @@ public class CascadingReleaseMojo extends AbstractMojo {
         try {
             validateSystemSettings();
             validateCurrentWorkspace();
-            ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil);
+
+            ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil, releasedModuleTracker);
             parentReleaseHelper.releaseParentIfNeeded();
 
-            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, session, getLog(), configUtil);
+            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, session, getLog(), configUtil, releasedModuleTracker);
 
-            //TODO: Create loop to release multiple EARs (and websphere plugins etc)
-            if (true) {
-                MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
-                cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
-                final ProjectModule distModule = configUtil.getProjectModuleFromMavenProject(releasableProject);
-                cascadingDependencyReleaseHelper.releaseModuleAndUpdateDependencies(distModule);
-            }
+            MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
+            cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
+            final ProjectModule distModule = configUtil.getProjectModuleFromMavenProject(releasableProject);
+            cascadingDependencyReleaseHelper.releaseModuleAndUpdateDependencies(distModule);
 
+            releasedModuleTracker.writeToFile(outputFile);
         } catch (IOException e) {
             throw new MojoFailureException("IO error", e);
         }
@@ -81,7 +82,6 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
     private void validateSystemSettings() throws MojoFailureException {
         validateEnvVars("M2_BIN", "Maven");
-        validateEnvVars("SVN_BIN", "SubVersion");
     }
 
     private void validateEnvVars(final String envVariable, final String name) throws MojoFailureException {
@@ -102,18 +102,37 @@ public class CascadingReleaseMojo extends AbstractMojo {
      * svn up
      */
     private void validateCurrentWorkspace() throws MojoFailureException {
-        final SvnInvoker svnUpInvoker = processFactory.createSvnInvoker("");
-        svnUpInvoker.execute("up");
+        final MavenInvoker scmUpdateInvoker = processFactory.createMavenInvoker("");
+        scmUpdateInvoker.execute("scm:update");
 
-        final SvnInvoker svnStInvoker = processFactory.createSvnInvoker("");
-        svnStInvoker.execute("st");
-        final ImmutableList<String> output = svnStInvoker.getOutput();
-        for (String s : output) {
-            getLog().info(s);
+        final MavenInvoker scmStatusInvoker = processFactory.createMavenInvoker("");
+        scmStatusInvoker.execute("scm:status");
+        final ImmutableList<String> output = scmStatusInvoker.getOutput();
+        final List<String> statusLines = extractScmStatusOutput(output);
+        for (String statusLine : statusLines) {
+            getLog().info("Local changes: " + statusLine);
         }
-        if (!output.isEmpty()) {
+        if (!statusLines.isEmpty()) {
             throw new MojoFailureException("You have local changes. Release aborted");
         }
+    }
+
+    private List<String> extractScmStatusOutput(ImmutableList<String> output) {
+        final List<String> statusLines = new ArrayList<String>();
+        boolean started = false;
+        for (String line : output) {
+            getLog().debug("line: " + line);
+            if (started) {
+                if (line.startsWith("[INFO] --------------------------")) {
+                    break;
+                }
+                statusLines.add(line);
+            }
+            if (line.startsWith("[INFO] Working directory: ")) {
+                started = true;
+            }
+        }
+        return statusLines;
     }
 
 }

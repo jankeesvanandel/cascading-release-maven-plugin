@@ -1,6 +1,8 @@
 package nl.jkva;
 
 import java.io.Console;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.ibm.jvm.j9.dump.commandconsole.ConsoleUtils;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.MojoFailureException;
@@ -26,22 +29,22 @@ public class CascadingDependencyReleaseHelper {
 
     private final Set<ProjectModule> releasedModules = new HashSet<ProjectModule>();
     private final ConfigUtil configUtil;
+    private final ReleasedModuleTracker releasedModuleTracker;
 
-    public CascadingDependencyReleaseHelper(ProcessFactory processFactory, Config config, MavenSession session, Log log, ConfigUtil configUtil) {
+    public CascadingDependencyReleaseHelper(ProcessFactory processFactory, Config config, MavenSession session, Log log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
         this.processFactory = processFactory;
         this.config = config;
         this.session = session;
         this.log = log;
         this.configUtil = configUtil;
+        this.releasedModuleTracker = releasedModuleTracker;
     }
 
     public void releaseDependencies(MavenProject project) throws MojoFailureException {
         log.info("About to release " + project.toString());
         Set<ProjectModule> releasableModules = determineReleasableModules(project);
 
-        for (ProjectModule releasedModule : releasedModules) {
-            updateVersionsInProjectForModule(project, releasedModule);
-        }
+        updateVersionsInProjectForModule(project, new ArrayList<ProjectModule>(releasedModules), null);
 
         for (ProjectModule module : releasableModules) {
             log.info("Releasing SNAPSHOT module " + module.getArtifactId());
@@ -114,14 +117,13 @@ public class CascadingDependencyReleaseHelper {
     }
 
     public void releaseModuleAndUpdateDependencies(ProjectModule module) throws MojoFailureException {
-        releaseModule(module);
+        List<ProjectModule> releasedModules = releaseModule(module);
 
-        updateProjectsWithLatestDependencyVersions(module);
+        updateProjectsWithLatestDependencyVersions(releasedModules, releasedModules.get(0).getReleasedVersion());
     }
 
-    private void releaseModule(ProjectModule module) throws MojoFailureException {
-        // release module
-        final String path = configUtil.getFullPathFromBase(module);
+    private List<ProjectModule> releaseModule(ProjectModule module) throws MojoFailureException {
+        final String path = configUtil.getFullPathFromBase(module, config.getBasedir());
         Console console = System.console();
         String input = console.readLine(createProjectIdentifier(module) + " dependency is snapshot. Release? [y]:");
         if (!input.isEmpty() && !input.equalsIgnoreCase("y")) {
@@ -141,22 +143,27 @@ public class CascadingDependencyReleaseHelper {
         int exitCode = mavenInvoker.execute(
                 "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
         final String releasedVersion = getReleasedVersionNumberFromProcess(module, mavenInvoker.getOutput());
-        module.setReleasedVersion(releasedVersion);
-
+        List<ProjectModule> flatListOfAllModules = ConfigUtil.getFlatListOfAllModules(Arrays.asList(module));
+        for (ProjectModule releasedModule : flatListOfAllModules) {
+            releasedModuleTracker.addReleasedModule(releasedModule.getGroupId(), releasedModule.getArtifactId(), releasedModule.getRelatedMavenProject().getVersion(), releasedVersion);
+            releasedModules.add(releasedModule);
+            releasedModule.setReleasedVersion(releasedVersion);
+        }
         log.info(createProjectIdentifier(module) + " release exited with code " + exitCode);
-        releasedModules.add(module);
+        return flatListOfAllModules;
     }
 
     private void releaseParentIfNeeded(ProjectModule parentModule, MavenProject parentProject, ProjectModule module) throws MojoFailureException {
         final String parentVersion = parentProject.getVersion();
         if (isSnapshot(parentVersion)) {
             releaseModule(parentModule);
+            releasedModuleTracker.addReleasedModule(parentProject.getGroupId(), parentProject.getArtifactId(), parentProject.getVersion());
             updateChildren(parentModule, module);
         }
     }
 
     private void updateChildren(ProjectModule parentModule, ProjectModule module) throws MojoFailureException {
-        final String path = configUtil.getFullPathFromBase(module);
+        final String path = configUtil.getFullPathFromBase(module, config.getBasedir());
         MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
 
         int exitCode = mavenInvoker.execute(
@@ -192,55 +199,65 @@ public class CascadingDependencyReleaseHelper {
         throw new MojoFailureException("Error extracting release version from Release Plugin output. Release aborted");
     }
 
-    /**
+    /*
      * Update all child poms.
      * Commit the child poms.
-     * @param releasedModule
      */
-    private void updateProjectsWithLatestDependencyVersions(ProjectModule releasedModule) throws MojoFailureException {
+    private void updateProjectsWithLatestDependencyVersions(List<ProjectModule> releasedModules, String version) throws MojoFailureException {
+        log.info("Updating dependent modules for: " + releasedModules);
         for (ProjectModule module : configUtil.getFlatListOfAllModules()) {
+            log.debug("Trying: " + module + "...");
             final MavenProject dependentMavenProject = configUtil.getMavenProjectFromPath(module.getPath());
-            if (doesProjectContainReleasedModule(dependentMavenProject, releasedModule)) {
-                updateVersionsInProjectForModule(dependentMavenProject, releasedModule);
+            if (doesProjectContainReleasedModule(dependentMavenProject, releasedModules)) {
+                log.debug("Updating versions...");
+                updateVersionsInProjectForModule(dependentMavenProject, releasedModules, version);
             }
 
             final List<MavenProject> subModules = configUtil.getAllModules(dependentMavenProject);
             for (MavenProject dependentSubModule : subModules) {
-                if (doesProjectContainReleasedModule(dependentSubModule, releasedModule)) {
-                    updateVersionsInProjectForModule(dependentSubModule, releasedModule);
+                if (doesProjectContainReleasedModule(dependentSubModule, releasedModules)) {
+                    updateVersionsInProjectForModule(dependentSubModule, releasedModules, version);
                 }
             }
         }
     }
 
-    private void updateVersionsInProjectForModule(MavenProject mavenProject, ProjectModule releasedModule) throws MojoFailureException {
+    private void updateVersionsInProjectForModule(MavenProject mavenProject, List<ProjectModule> releasedModules, String version) throws MojoFailureException {
         final ProjectModule module = configUtil.getProjectModuleFromMavenProject(mavenProject);
-        final String path = configUtil.getFullPathFromBase(module);
+        final String path = configUtil.getFullPathFromBase(module, config.getBasedir());
         final MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
 
-        final String includeArg = getIncludedArtifactsForVersionPlugin(releasedModule);
-        final String commitMsg = "Update_" + createProjectIdentifier(mavenProject) + "_to_" + createProjectIdentifier(releasedModule);
+        final String includeArg = getIncludedArtifactsForVersionPlugin(releasedModules);
+        final String commitMsg = "Update_" + createProjectIdentifier(mavenProject) + "_to_" + version;
         int exitCode = mavenInvoker.execute("versions:update-properties versions:use-latest-versions versions:commit " + //
                 "scm:checkin -Dmessage=\"" + commitMsg + "\" " + includeArg);
         log.info("Update dependency for " + mavenProject.getGroupId() + ":" + mavenProject.getArtifactId() + ". Exit code=" + exitCode);
     }
 
-    private String getIncludedArtifactsForVersionPlugin(ProjectModule releasedModule) {
+    private String getIncludedArtifactsForVersionPlugin(List<ProjectModule> releasedModules) {
         final StringBuilder sb = new StringBuilder("-Dincludes=");
-        sb.append(releasedModule.getGroupId());
-        sb.append(":");
-        sb.append(releasedModule.getArtifactId());
+        String sep = "";
+        for (ProjectModule releasedModule : releasedModules) {
+            sb.append(sep);
+            sb.append(releasedModule.getGroupId());
+            sb.append(":");
+            sb.append(releasedModule.getArtifactId());
+            sep = ",";
+        }
         return sb.toString();
     }
 
-    private boolean doesProjectContainReleasedModule(MavenProject mavenProject, ProjectModule releasedModule) {
-        final String releasedModuleKey = createProjectIdentifier(releasedModule);
-        final List<Dependency> dependencies = mavenProject.getDependencies();
-        for (Dependency dependency : dependencies) {
-            final String dependencyKey = createProjectIdentifier(dependency);
-            if (releasedModuleKey.equals(dependencyKey)) {
-                log.info("Found dependency to module [" + releasedModuleKey + "]: " + dependencyKey);
-                return true;
+    private boolean doesProjectContainReleasedModule(MavenProject mavenProject, List<ProjectModule> releasedModules) {
+        for (ProjectModule releasedModule : releasedModules) {
+            final String releasedModuleKey = createProjectIdentifier(releasedModule);
+            final List<Dependency> dependencies = mavenProject.getDependencies();
+            for (Dependency dependency : dependencies) {
+                final String dependencyKey = createProjectIdentifier(dependency);
+                log.debug(releasedModuleKey + ".equals(" + dependencyKey + ")??? " + releasedModuleKey.equals(dependencyKey));
+                if (releasedModuleKey.equals(dependencyKey)) {
+                    log.debug("Found dependency to module [" + releasedModuleKey + "]: " + dependencyKey);
+                    return true;
+                }
             }
         }
 
