@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jankeesvanandel/cascading-release-maven-plugin.svg?branch=master)](https://travis-ci.org/jankeesvanandel/cascading-release-maven-plugin)
+
 Welcome to the cascading-release-maven-plugin wiki!
 
 Most Maven users use the maven-release-plugin and for most people it works pretty well.
