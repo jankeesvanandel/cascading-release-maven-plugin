@@ -137,7 +137,7 @@ public class ParentReleaseHelper {
 
         int exitCode =
                 mavenInvoker
-                    .execute("clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+                    .execute("clean install scm:update release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
         log.info(moduleName + " release exited with code " + exitCode);
         releasedModuleTracker.addReleasedModule(parentArtifact.getGroupId(), parentArtifact.getArtifactId(), parentArtifact.getVersion());
     }

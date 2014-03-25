@@ -1,7 +1,6 @@
 package nl.jkva;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
@@ -134,7 +133,7 @@ public class CascadingDependencyReleaseHelper {
         releaseDependencies(mavenProject);
 
         int exitCode = mavenInvoker.execute(
-                "clean install scm:validate release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+                "clean install scm:update release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
         final String releasedVersion = getReleasedVersionNumberFromProcess(module, mavenInvoker.getOutput());
         List<ProjectModule> flatListOfAllModules = ConfigUtil.getFlatListOfAllModules(Arrays.asList(module));
         for (ProjectModule releasedModule : flatListOfAllModules) {
@@ -161,7 +160,8 @@ public class CascadingDependencyReleaseHelper {
 
         int exitCode = mavenInvoker.execute(
                 "versions:update-parent versions:commit scm:checkin -Dmessage=\"Update_" +
-                        parentModule.getArtifactId() + "_to_" + parentModule.getReleasedVersion() + "\"");
+                        parentModule.getArtifactId() + "_to_" + parentModule.getReleasedVersion() + "\""
+        );
         log.info("Update dependency for " + parentModule.getGroupId() + ":" + parentModule.getArtifactId() + ". Exit code=" + exitCode);
     }
 
@@ -221,16 +221,20 @@ public class CascadingDependencyReleaseHelper {
         final MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
 
         final String includeArg = getIncludedArtifactsForVersionPlugin(releasedModules);
+        final String includePropArg = getIncludedPropertiesForVersionPlugin(module, releasedModules);
         final String commitMsg = "Update_" + createProjectIdentifier(mavenProject) + "_to_" + version;
         int exitCode = mavenInvoker.execute("versions:update-properties versions:use-latest-versions versions:commit " + //
-                "scm:checkin -Dmessage=\"" + commitMsg + "\" " + includeArg);
+                "scm:checkin -Dmessage=\"" + commitMsg + "\" " + includeArg + " " + includePropArg);
         log.info("Update dependency for " + mavenProject.getGroupId() + ":" + mavenProject.getArtifactId() + ". Exit code=" + exitCode);
     }
 
-    private String getIncludedArtifactsForVersionPlugin(List<ProjectModule> releasedModules) {
-        final StringBuilder sb = new StringBuilder("-Dincludes=");
+    private String getIncludedArtifactsForVersionPlugin(List<ProjectModule> releasedModules) throws MojoFailureException {
+        final StringBuilder sb = new StringBuilder();
         String sep = "";
-        if (!releasedModules.isEmpty()) {
+        if (releasedModules.isEmpty()) {
+            throw new MojoFailureException("Illegal state: there are no released modules");
+        } else {
+            sb.append("-Dincludes=");
             for (ProjectModule releasedModule : releasedModules) {
                 sb.append(sep);
                 sb.append(releasedModule.getGroupId());
@@ -242,20 +246,53 @@ public class CascadingDependencyReleaseHelper {
         return sb.toString();
     }
 
-    private boolean doesProjectContainReleasedModule(MavenProject mavenProject, List<ProjectModule> releasedModules) {
-        for (ProjectModule releasedModule : releasedModules) {
-            final String releasedModuleKey = createProjectIdentifier(releasedModule);
-            final List<Dependency> dependencies = mavenProject.getDependencies();
-            for (Dependency dependency : dependencies) {
-                final String dependencyKey = createProjectIdentifier(dependency);
-                log.debug(releasedModuleKey + ".equals(" + dependencyKey + ")??? " + releasedModuleKey.equals(dependencyKey));
-                if (releasedModuleKey.equals(dependencyKey)) {
-                    log.debug("Found dependency to module [" + releasedModuleKey + "]: " + dependencyKey);
-                    return true;
+    private String getIncludedPropertiesForVersionPlugin(final ProjectModule module, final List<ProjectModule> releasedModules) throws MojoFailureException {
+        String sep = "";
+        if (releasedModules.isEmpty()) {
+            throw new MojoFailureException("Illegal state: there are no released modules");
+        } else {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("-DincludeProperties=");
+            final List<Dependency> dependencies = module.getRelatedMavenProject().getOriginalModel().getDependencies();
+            for (ProjectModule releasedModule : releasedModules) {
+                sb.append(sep);
+                final Dependency dependency = findDependency(dependencies, releasedModule);
+
+                if (dependency != null) {
+                    final String version = dependency.getVersion();
+                    if (version.startsWith("${") && version.endsWith("}")) {
+                        final String prop = version.substring(2, version.length() - 1);
+                        sb.append(prop);
+                        sep = ",";
+                    }
                 }
+            }
+            return sb.toString();
+        }
+    }
+
+    private boolean doesProjectContainReleasedModule(MavenProject mavenProject, Iterable<ProjectModule> releasedModules) {
+        for (ProjectModule releasedModule : releasedModules) {
+            final Dependency dependency = findDependency(mavenProject.getDependencies(), releasedModule);
+            if (dependency != null) {
+                return true;
             }
         }
 
         return false;
+    }
+
+    private Dependency findDependency(final List<Dependency> dependencies, final ProjectModule releasedModule) {
+        final String releasedModuleKey = createProjectIdentifier(releasedModule);
+        for (Dependency dependency : dependencies) {
+            final String dependencyKey = createProjectIdentifier(dependency);
+            log.debug(releasedModuleKey + ".equals(" + dependencyKey + ")??? " + releasedModuleKey.equals(dependencyKey));
+            if (releasedModuleKey.equals(dependencyKey)) {
+                log.debug("Found dependency to module [" + releasedModuleKey + "]: " + dependencyKey);
+                return dependency;
+            }
+        }
+
+        return null;
     }
 }
