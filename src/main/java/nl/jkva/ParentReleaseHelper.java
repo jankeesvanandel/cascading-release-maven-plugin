@@ -150,10 +150,10 @@ public class ParentReleaseHelper {
             if (module.getParent() == null) {
                 MavenInvoker mavenInvoker = processFactory.createMavenInvoker(configUtil.getFullPathFromBase(module, config.getBasedir()));
 
-                // TODO: fix this TODO
+                // TODO: Add the version number of the parent to the commit message
                 int exitCode =
                         mavenInvoker
-                            .execute("versions:update-parent versions:commit scm:checkin -Dmessage=\"Update_parent_to_TODO_LATEST_release_version\"");
+                            .execute("versions:update-parent versions:commit scm:checkin -Dmessage=\"Update_parent_to_latest_release_version\"");
                 log.info("Update parent for " + module.getGroupId() + ":" + module.getArtifactId()
                         + ". Exit code=" + exitCode);
             }
