@@ -14,22 +14,24 @@ import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.IOUtil;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
+@Named
 public class ConfigFileReader {
 
-    private final Log log;
-    private final MavenProject project;
+    private final Logger log;
 
-    public ConfigFileReader(Log log, MavenProject project) {
+    @Inject
+    public ConfigFileReader(Logger log) {
         this.log = log;
-        this.project = project;
     }
 
-    public Config readConfigFile(File configFile, List<MavenProject> reactorProjects) throws MojoFailureException {
+    public Config readConfigFile(File configFile, MavenProject project, List<MavenProject> reactorProjects) throws MojoFailureException {
         log.info("Reading file: " + configFile);
         if (!configFile.exists() || !configFile.canRead()) {
             throw new MojoFailureException("Invalid configFile. Does it exist?");
@@ -199,7 +201,6 @@ public class ConfigFileReader {
 
 
     public String outputConfig(Config config) {
-//        log.info("Current project structure:");
         final List<ProjectModule> modules = config.getModules();
         return outputModules(modules, "");
     }

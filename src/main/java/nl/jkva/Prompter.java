@@ -2,6 +2,7 @@ package nl.jkva;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import java.io.Console;
 import java.io.File;
 
 /**
@@ -11,12 +12,10 @@ import java.io.File;
 public class Prompter {
 
     private final Logger logger;
-    private final InternalPrompter prompter;
 
     @Inject
-    public Prompter(Logger logger, InternalPrompter prompter) {
+    public Prompter(Logger logger) {
         this.logger = logger;
-        this.prompter = prompter;
     }
 
     String promptWithDefault(String promptMessage, String defaultValue) {
@@ -34,7 +33,8 @@ public class Prompter {
     }
 
     String prompt(String message) {
-        return prompter.prompt(message);
+        Console console = System.console();
+        return console.readLine(message);
     }
 
 }

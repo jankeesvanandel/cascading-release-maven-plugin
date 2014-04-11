@@ -12,27 +12,29 @@ import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 
 public class ParentReleaseHelper {
 
-    private ProcessFactory processFactory;
-    private Config config;
-    private MavenSession session;
-    private MavenProject project;
-    private Log log;
-    private ConfigUtil configUtil;
+    private final ProcessFactory processFactory;
+    private final Config config;
+    private final MavenSession session;
+    private final MavenProject project;
+    private final Logger log;
+    private final ConfigUtil configUtil;
+    private final Prompter prompter;
     private final ReleasedModuleTracker releasedModuleTracker;
 
     public ParentReleaseHelper(ProcessFactory processFactory, Config config, MavenSession session,
-                               MavenProject project, Log log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
+                               MavenProject project, Logger log, ConfigUtil configUtil, Prompter prompter,
+                               ReleasedModuleTracker releasedModuleTracker) {
         this.processFactory = processFactory;
         this.config = config;
         this.session = session;
         this.project = project;
         this.log = log;
         this.configUtil = configUtil;
+        this.prompter = prompter;
         this.releasedModuleTracker = releasedModuleTracker;
     }
 
@@ -93,7 +95,7 @@ public class ParentReleaseHelper {
         if (thereIsOnlyOneVersionPerParentArtifact(versionsPerParentPom)) {
             log.info("All modules use the same parent, continuing with release...");
         } else {
-            String cont = PromptUtil.promptWithDefault("Not all modules in the project share the same parent. Continue? (Yn)", "Y");
+            String cont = prompter.promptWithDefault("Not all modules in the project share the same parent. Continue? (Yn)", "Y");
             if (cont.equalsIgnoreCase("n")) {
                 throw new MojoFailureException("Not all modules in the project share the same parent. Release aborted");
             } else {

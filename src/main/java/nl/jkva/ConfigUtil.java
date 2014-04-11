@@ -10,14 +10,22 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 
+import javax.inject.Inject;
+import javax.inject.Named;
+
+@Named
 public class ConfigUtil {
-    private Config config;
-    private Log log;
+    private final Config config;
+    private final Logger logger;
     private MavenSession session;
 
-    public ConfigUtil(Config config, Log log, MavenSession session) {
+    @Inject
+    public ConfigUtil(Config config, Logger logger) {
         this.config = config;
-        this.log = log;
+        this.logger = logger;
+    }
+
+    public void setSession(MavenSession session) {
         this.session = session;
     }
 

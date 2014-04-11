@@ -1,10 +1,6 @@
 package nl.jkva;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
+import com.google.common.collect.ImmutableList;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.BuildPluginManager;
@@ -17,11 +13,17 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.StringUtils;
 
-import com.google.common.collect.ImmutableList;
+import javax.inject.Inject;
+import javax.inject.Named;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
+@Named("cascading-release")
 @Mojo(name = "cascading-release", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, inheritByDefault = false, aggregator = true)
 public class CascadingReleaseMojo extends AbstractMojo {
 
@@ -46,28 +48,46 @@ public class CascadingReleaseMojo extends AbstractMojo {
     @Component
     private BuildPluginManager pluginManager;
 
-    private ProcessFactory processFactory;
     private Config config;
-    private ConfigUtil configUtil;
-    private ReleasedModuleTracker releasedModuleTracker = new ReleasedModuleTracker();
+
+    private final ProcessFactory processFactory;
+    private final ConfigUtil configUtil;
+
+    private final ReleasedModuleTracker releasedModuleTracker;
+    private final Prompter prompter;
+    private final Logger logger;
+    private ConfigFileReader configFileReader;
+
+    @Inject
+    public CascadingReleaseMojo(ProcessFactory processFactory, ConfigUtil configUtil,
+                                ReleasedModuleTracker releasedModuleTracker, Prompter prompter, Logger logger,
+                                ConfigFileReader configFileReader) {
+        this.processFactory = processFactory;
+        this.configUtil = configUtil;
+        this.releasedModuleTracker = releasedModuleTracker;
+        this.prompter = prompter;
+        this.logger = logger;
+        this.configFileReader = configFileReader;
+    }
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-        ConfigFileReader configFileReader = new ConfigFileReader(getLog(), project);
-        config = configFileReader.readConfigFile(cfgFile, reactorProjects);
+        logger.setLog(getLog());
+
+        config = configFileReader.readConfigFile(cfgFile, project, reactorProjects);
         config.setBasedir(basedir);
         String s = configFileReader.outputConfig(config);
 
-        processFactory = new ProcessFactory(getLog(), config.getProjectBase());
-        configUtil = new ConfigUtil(config, getLog(), session);
+        processFactory.setProjectBase(config.getProjectBase());
+        configUtil.setSession(session);
 
         try {
             validateSystemSettings();
             validateCurrentWorkspace();
 
-            ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, getLog(), configUtil, releasedModuleTracker);
+            ParentReleaseHelper parentReleaseHelper = new ParentReleaseHelper(processFactory, config, session, project, logger, configUtil, prompter, releasedModuleTracker);
             parentReleaseHelper.releaseParentIfNeeded();
 
-            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, getLog(), configUtil, releasedModuleTracker);
+            CascadingDependencyReleaseHelper cascadingDependencyReleaseHelper = new CascadingDependencyReleaseHelper(processFactory, config, logger, configUtil, releasedModuleTracker);
 
             MavenProject releasableProject = configUtil.getMavenProjectFromPath(config.getDistPath());
             cascadingDependencyReleaseHelper.releaseDependencies(releasableProject);
@@ -87,12 +107,12 @@ public class CascadingReleaseMojo extends AbstractMojo {
     private void validateEnvVars(final String envVariable, final String name) throws MojoFailureException {
         String variable = System.getenv(envVariable);
         if (StringUtils.isBlank(variable)) {
-            throw new MojoFailureException("Environment variable "+envVariable+" not defined");
+            throw new MojoFailureException("Environment variable " + envVariable + " not defined");
         }
         File exec = new File(variable);
         getLog().info("Using " + name + ": " + variable);
         if (!exec.exists() || !exec.canExecute()) {
-            throw new MojoFailureException("Environment variable "+envVariable+ " does not point to a valid " + name + " executable)" + exec);
+            throw new MojoFailureException("Environment variable " + envVariable + " does not point to a valid " + name + " executable)" + exec);
         }
     }
 

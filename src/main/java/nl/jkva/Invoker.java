@@ -1,32 +1,26 @@
 package nl.jkva;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import com.google.common.collect.ImmutableList;
+import org.apache.maven.plugin.MojoFailureException;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugin.logging.Log;
-
-import com.google.common.collect.ImmutableList;
 
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
 public abstract class Invoker {
     private static final String ERR_MSG = "Error running maven command: ";
-    final Log log;
+    final Logger log;
     final File workDir;
     private final boolean redirectLogs;
     private StreamGobbler outputGobbler;
     private StreamGobbler errorGobbler;
 
-    public Invoker(Log log, File workDir, boolean redirectLogs) {
+    public Invoker(Logger log, File workDir, boolean redirectLogs) {
         this.log = log;
         this.workDir = workDir;
         this.redirectLogs = redirectLogs;
@@ -39,7 +33,7 @@ public abstract class Invoker {
         errorGobbler.start();
     }
 
-    protected Log getLog() {
+    protected Logger getLog() {
         return log;
     }
 
@@ -90,12 +84,12 @@ public abstract class Invoker {
 
     private static class StreamGobbler extends Thread {
         private final InputStream is;
-        private final Log log;
+        private final Logger log;
         private final boolean redirectLogs;
         private final List<String> output = new ArrayList<String>();
         private final AtomicBoolean done = new AtomicBoolean();
 
-        private StreamGobbler(InputStream is, Log log, boolean redirectLogs) {
+        private StreamGobbler(InputStream is, Logger log, boolean redirectLogs) {
             this.is = is;
             this.log = log;
             this.redirectLogs = redirectLogs;
@@ -126,7 +120,7 @@ public abstract class Invoker {
                     log.debug("Not yet done...");
                     Thread.sleep(50);
                 }
-    
+
                 return output;
             } catch (InterruptedException e) {
                 Thread.interrupted();

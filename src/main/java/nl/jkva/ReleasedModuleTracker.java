@@ -5,6 +5,7 @@ import com.google.common.io.Files;
 import org.apache.maven.plugin.MojoFailureException;
 import org.joda.time.DateTime;
 
+import javax.inject.Named;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.List;
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
+@Named
 public class ReleasedModuleTracker {
 
     /**

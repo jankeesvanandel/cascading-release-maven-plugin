@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class MavenInvoker extends Invoker {
 
-    public MavenInvoker(Log log, final File workDir, final boolean redirectLogs) {
+    public MavenInvoker(Logger log, final File workDir, final boolean redirectLogs) {
         super(log, workDir, redirectLogs);
     }
 

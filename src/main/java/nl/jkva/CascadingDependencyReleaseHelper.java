@@ -20,13 +20,13 @@ import static nl.jkva.ConfigUtil.createProjectIdentifier;
 public class CascadingDependencyReleaseHelper {
     private final ProcessFactory processFactory;
     private final Config config;
-    private final Log log;
+    private final Logger log;
 
     private final Set<ProjectModule> releasedModules = new HashSet<ProjectModule>();
     private final ConfigUtil configUtil;
     private final ReleasedModuleTracker releasedModuleTracker;
 
-    public CascadingDependencyReleaseHelper(ProcessFactory processFactory, Config config, Log log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
+    public CascadingDependencyReleaseHelper(ProcessFactory processFactory, Config config, Logger log, ConfigUtil configUtil, ReleasedModuleTracker releasedModuleTracker) {
         this.processFactory = processFactory;
         this.config = config;
         this.log = log;
