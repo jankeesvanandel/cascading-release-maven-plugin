@@ -8,11 +8,15 @@ import java.io.File;
  */
 public class PromptUtil {
     static String promptWithDefault(String promptMessage, String defaultValue) {
-        String input = prompt(String.format(promptMessage + " [%s]:", defaultValue));
-        if (input.isEmpty()) {
-            input = defaultValue;
+        if (System.getProperty("batchMode", "false").equals("true")) {
+            return defaultValue;
+        } else {
+            String input = prompt(String.format(promptMessage + " [%s]:", defaultValue));
+            if (input.isEmpty()) {
+                input = defaultValue;
+            }
+            return input;
         }
-        return input;
     }
 
     static File promptForDirectory(String promptMessage, String defaultValue) {

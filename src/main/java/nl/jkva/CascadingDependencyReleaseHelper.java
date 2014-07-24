@@ -6,7 +6,6 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 
-import java.io.Console;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -116,8 +115,8 @@ public class CascadingDependencyReleaseHelper {
 
     private List<ProjectModule> releaseModule(ProjectModule module) throws MojoFailureException {
         final String path = configUtil.getFullPathFromBase(module, config.getBasedir());
-        Console console = System.console();
-        String input = console.readLine(createProjectIdentifier(module) + " dependency is snapshot. Release? [y]:");
+
+        String input = PromptUtil.promptWithDefault(createProjectIdentifier(module) + " dependency is snapshot. Release?", "y");
         if (!input.isEmpty() && !input.equalsIgnoreCase("y")) {
             throw new MojoFailureException("Aborted by user");
         }
@@ -125,33 +124,43 @@ public class CascadingDependencyReleaseHelper {
         MavenProject mavenProject = configUtil.getMavenProjectFromPath(path);
 
         final MavenProject parentProject = mavenProject.getParent();
-        final ProjectModule parentModule = configUtil.getProjectModuleFromMavenProject(parentProject);
-        releaseParentIfNeeded(parentModule, parentProject, module);
+        final String parentVersion = parentProject.getVersion();
+        if (isSnapshot(parentVersion)) {
+            final ProjectModule parentModule = configUtil.getProjectModuleFromMavenProject(parentProject);
+            releaseParentIfNeeded(parentModule, module);
+        }
 
         MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
 
         releaseDependencies(mavenProject);
 
-        int exitCode = mavenInvoker.execute(
-                "clean install scm:update release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
-        final String releasedVersion = getReleasedVersionNumberFromProcess(module, mavenInvoker.getOutput());
-        List<ProjectModule> flatListOfAllModules = ConfigUtil.getFlatListOfAllModules(Arrays.asList(module));
-        for (ProjectModule releasedModule : flatListOfAllModules) {
-            releasedModuleTracker.addReleasedModule(releasedModule.getGroupId(), releasedModule.getArtifactId(), releasedModule.getRelatedMavenProject().getVersion(), releasedVersion);
-            releasedModules.add(releasedModule);
-            releasedModule.setReleasedVersion(releasedVersion);
+        if (!releasedModuleTracker.containsReleasedModule(module.getGroupId(), module.getArtifactId())) {
+            int exitCode = mavenInvoker.execute(
+                    "clean install scm:update release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+            final String releasedVersion = getReleasedVersionNumberFromProcess(module, mavenInvoker.getOutput());
+            List<ProjectModule> flatListOfAllModules = ConfigUtil.getFlatListOfAllModules(Arrays.asList(module));
+            for (ProjectModule releasedModule : flatListOfAllModules) {
+                releasedModuleTracker.addReleasedModule(releasedModule.getGroupId(), releasedModule.getArtifactId(), releasedModule.getRelatedMavenProject().getVersion(), releasedVersion);
+                releasedModules.add(releasedModule);
+                releasedModule.setReleasedVersion(releasedVersion);
+            }
+            log.info(createProjectIdentifier(module) + " release exited with code " + exitCode);
+            return flatListOfAllModules;
+        } else {
+            final Identifier releasedModule = releasedModuleTracker.getReleasedModule(module.getGroupId(), module.getArtifactId());
+            final ProjectModule moduleForIdentifier = configUtil.getModuleForIdentifier(releasedModule);
+            return Arrays.asList(moduleForIdentifier);
         }
-        log.info(createProjectIdentifier(module) + " release exited with code " + exitCode);
-        return flatListOfAllModules;
     }
 
-    private void releaseParentIfNeeded(ProjectModule parentModule, MavenProject parentProject, ProjectModule module) throws MojoFailureException {
-        final String parentVersion = parentProject.getVersion();
-        if (isSnapshot(parentVersion)) {
+    private void releaseParentIfNeeded(ProjectModule parentModule, ProjectModule module) throws MojoFailureException {
+        final String groupId = parentModule.getGroupId();
+        final String artifactId = parentModule.getArtifactId();
+
+        if (!releasedModuleTracker.containsReleasedModule(groupId, artifactId)) {
             releaseModule(parentModule);
-            releasedModuleTracker.addReleasedModule(parentProject.getGroupId(), parentProject.getArtifactId(), parentProject.getVersion());
-            updateChildren(parentModule, module);
         }
+        updateChildren(parentModule, module);
     }
 
     private void updateChildren(ProjectModule parentModule, ProjectModule module) throws MojoFailureException {

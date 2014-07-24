@@ -1,6 +1,5 @@
 package nl.jkva;
 
-import java.io.Console;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,10 +47,9 @@ public class ParentReleaseHelper {
         final String usedParentVersion = getUsedVersionForProject(parentProject, versionsPerParentPom);
 
         if (!usedParentVersion.equals(latestParentVersion)) {
-            Console console = System.console();
-            String input = console.readLine("Project parent [" + usedParentVersion + "] is not pointing " + //
-                    "to the latest version [" + latestParentVersion + "]. This doesn't have to be an issue, " + //
-                    " the release will be made with the current parent version. Continue release? [y]:");
+            String input = PromptUtil.promptWithDefault("Project parent [" + usedParentVersion + "] is not pointing " + //
+                            "to the latest version [" + latestParentVersion + "]. This doesn't have to be an issue, " + //
+                            " the release will be made with the current parent version. Continue release?", "y");
             if (!input.isEmpty() && !input.equalsIgnoreCase("y")) {
                 throw new MojoFailureException("Release aborted by user");
             }
@@ -59,7 +57,11 @@ public class ParentReleaseHelper {
 
         final Artifact parentArtifact = project.getParentArtifact();
         if (parentArtifact.isSnapshot()) {
-            releaseParent(parentArtifact);
+            final String groupId = parentArtifact.getGroupId();
+            final String artifactId = parentArtifact.getArtifactId();
+            if (!releasedModuleTracker.containsReleasedModule(groupId, artifactId)) {
+                releaseParent(parentArtifact);
+            }
             updateChildProjectsWithLatestParentVersion();
         }
     }
@@ -128,8 +130,7 @@ public class ParentReleaseHelper {
     }
 
     private void releaseModule(final String moduleName, final String path, Artifact parentArtifact) throws MojoFailureException {
-        Console console = System.console();
-        String input = console.readLine(moduleName + " dependency is snapshot. Release? [y]:");
+        String input = PromptUtil.promptWithDefault(moduleName + " dependency is snapshot. Release?", "y");
         if (input.equalsIgnoreCase("n")) {
             throw new MojoFailureException("Aborted by user");
         }

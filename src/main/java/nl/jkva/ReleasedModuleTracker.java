@@ -35,6 +35,30 @@ public class ReleasedModuleTracker {
         return releasedModules;
     }
 
+    public boolean containsReleasedModule(String groupId, String artifactId) {
+        final String moduleIdentifier = String.format("%s:%s", groupId, artifactId);
+        for (String releasedModule : releasedModules) {
+            if (releasedModule.startsWith(moduleIdentifier)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Identifier getReleasedModule(String groupId, String artifactId) {
+        final String moduleIdentifier = String.format("%s:%s", groupId, artifactId);
+        for (String releasedModule : releasedModules) {
+            if (releasedModule.startsWith(moduleIdentifier)) {
+                final Identifier identifier = new Identifier();
+                final String[] splitted = releasedModule.split(":");
+                identifier.setGroupId(splitted[0]);
+                identifier.setArtifactId(splitted[1].split(" ")[0]);
+                return identifier;
+            }
+        }
+        return null;
+    }
+
     public void writeToFile(File file) throws MojoFailureException {
         String newLine = System.getProperty("line.separator");
 

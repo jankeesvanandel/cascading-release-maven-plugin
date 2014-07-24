@@ -126,13 +126,20 @@ public class CascadingReleaseMojo extends AbstractMojo {
                 if (line.startsWith("[INFO] --------------------------")) {
                     break;
                 }
-                statusLines.add(line);
+                if (isInterestingStatusLine(line)) {
+                    statusLines.add(line);
+                }
             }
             if (line.startsWith("[INFO] Working directory: ")) {
                 started = true;
             }
         }
         return statusLines;
+    }
+
+    private boolean isInterestingStatusLine(final String line) {
+        return !line.contains("[INFO] Executing: cmd.exe")
+            && !line.contains("[INFO] Working directory: ");
     }
 
 }

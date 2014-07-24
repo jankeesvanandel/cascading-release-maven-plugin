@@ -98,6 +98,17 @@ public class ConfigUtil {
         return null;
     }
 
+    public ProjectModule getModuleForIdentifier(Identifier identifier) {
+        final List<ProjectModule> allModules = getFlatListOfAllModules(config.getModules());
+        for (ProjectModule module : allModules) {
+            if (identifier.getGroupId().equals(module.getGroupId())
+             && identifier.getArtifactId().equals(module.getArtifactId())) {
+                return module;
+            }
+        }
+        return null;
+    }
+
     public List<ProjectModule> getFlatListOfAllModules() {
         return getFlatListOfAllModules(config.getModules());
     }
