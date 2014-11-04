@@ -6,6 +6,9 @@ import org.apache.maven.plugin.MojoExecutionException;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * @author Jan-Kees van Andel - @jankeesvanandel
+ */
 public class Util {
     public static boolean isReactorRootProject(MavenSession session, File basedir) throws MojoExecutionException {
         try {

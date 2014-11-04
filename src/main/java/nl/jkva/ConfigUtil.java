@@ -10,6 +10,9 @@ import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 
+/**
+ * @author Jan-Kees van Andel - @jankeesvanandel
+ */
 public class ConfigUtil {
     private Config config;
     private Log log;

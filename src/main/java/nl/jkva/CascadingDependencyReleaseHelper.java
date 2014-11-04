@@ -16,6 +16,9 @@ import java.util.regex.Pattern;
 
 import static nl.jkva.ConfigUtil.createProjectIdentifier;
 
+/**
+ * @author Jan-Kees van Andel - @jankeesvanandel
+ */
 public class CascadingDependencyReleaseHelper {
     private final ProcessFactory processFactory;
     private final Config config;

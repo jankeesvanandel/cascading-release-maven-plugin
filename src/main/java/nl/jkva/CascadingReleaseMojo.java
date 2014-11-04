@@ -53,7 +53,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         ConfigFileReader configFileReader = new ConfigFileReader(getLog(), project);
-        config = configFileReader.readConfigFile(cfgFile, reactorProjects);
+        config = configFileReader.readConfigFile(reactorProjects);
         config.setBasedir(basedir);
         String s = configFileReader.outputConfig(config);
 
@@ -86,7 +86,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
     private void validateEnvVars(final String envVariable, final String name) throws MojoFailureException {
         String variable = System.getenv(envVariable);
-        if (StringUtils.isBlank(variable)) {
+        if (StringUtils.isEmpty(variable)) {
             throw new MojoFailureException("Environment variable "+envVariable+" not defined");
         }
         File exec = new File(variable);

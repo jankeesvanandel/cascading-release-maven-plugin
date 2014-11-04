@@ -17,58 +17,46 @@
     </properties>
 
     <dependencies>
-        <!--  Gson: Java to Json conversion -->
-        <dependency>
-          <groupId>com.google.code.gson</groupId>
-          <artifactId>gson</artifactId>
-          <version>2.2.4</version>
-          <scope>compile</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-core</artifactId>
-            <version>3.0</version>
+            <version>3.2.3</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-model</artifactId>
-            <version>3.1.0</version>
+            <version>3.2.3</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
-            <version>3.1.0</version>
-            <scope>compile</scope>
+            <version>3.2.3</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-utils</artifactId>
-            <version>3.0.10</version>
+            <version>1.1</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.sonatype.sisu</groupId>
             <artifactId>sisu-inject-plexus</artifactId>
-            <version>2.3.0</version>
+            <version>2.5.3</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.github.fge</groupId>
-            <artifactId>json-schema-validator</artifactId>
-            <version>2.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>15.0</version>
+            <version>14.0.1</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.plugin-tools</groupId>
             <artifactId>maven-plugin-annotations</artifactId>
-            <version>3.2</version>
+            <version>3.3</version>
             <!-- annotations are not needed for plugin execution so you can remove this dependency
                  for execution with using provided scope -->
             <scope>provided</scope>
@@ -77,7 +65,7 @@
         <dependency>
             <groupId>org.twdata.maven</groupId>
             <artifactId>mojo-executor</artifactId>
-            <version>2.0.1</version>
+            <version>2.2.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -87,7 +75,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-plugin-plugin</artifactId>
-                <version>3.2</version>
+                <version>3.3</version>
                 <configuration>
                     <!-- see http://jira.codehaus.org/browse/MNG-5346 -->
                     <skipErrorNoDescriptorsFound>true</skipErrorNoDescriptorsFound>

@@ -1,23 +1,15 @@
 package nl.jkva;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.github.fge.jsonschema.exceptions.ProcessingException;
-import com.github.fge.jsonschema.main.JsonSchema;
-import com.github.fge.jsonschema.main.JsonSchemaFactory;
-import com.github.fge.jsonschema.report.ProcessingReport;
-import com.github.fge.jsonschema.util.JsonLoader;
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
-import com.google.gson.Gson;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.IOUtil;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.List;
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 
 public class ConfigFileReader {
 
@@ -29,32 +21,27 @@ public class ConfigFileReader {
         this.project = project;
     }
 
-    public Config readConfigFile(File configFile, List<MavenProject> reactorProjects) throws MojoFailureException {
-        log.info("Reading file: " + configFile);
-        if (!configFile.exists() || !configFile.canRead()) {
-            throw new MojoFailureException("Invalid configFile. Does it exist?");
-        }
-
+    public Config readConfigFile(List<MavenProject> reactorProjects) throws MojoFailureException {
         final Config config;
         try {
-            String fileContents = IOUtil.toString(new FileInputStream(configFile));
-            validateConfigFileWithJsonSchema(fileContents);
-            config = new Gson().fromJson(fileContents, Config.class);
+            config = new Config();
+            config.setParentPath("");
+            config.setDistPath("");
+            config.setName("TODO");
             config.setProjectBase(project.getBasedir().getCanonicalFile());
 
             setModules(project, reactorProjects, config.getModules());
             setModuleParents(config);
             setReleasableModuleParents(config);
             updateAutoDeterminedFields(config);
-
-            validateConfigFile(config);
         } catch (IOException e) {
             throw new MojoFailureException("Invalid config file, valid JSON?", e);
         }
         return config;
     }
 
-    private void setModules(MavenProject mavenProject, List<MavenProject> reactorProjects, List<ProjectModule> modules) throws MojoFailureException {
+    private void setModules(MavenProject mavenProject, List<MavenProject> reactorProjects, List<ProjectModule> modules)
+            throws MojoFailureException {
         List<String> moduleNames = mavenProject.getModules();
         for (String moduleName : moduleNames) {
             MavenProject moduleProject = findMavenProjectForModule(mavenProject, reactorProjects, moduleName);
@@ -120,25 +107,26 @@ public class ConfigFileReader {
         }
     }
 
-    private ProjectModule findProjectModule(String groupId, String artifactId, List<ProjectModule> allModules) throws MojoFailureException {
+    private ProjectModule findProjectModule(String groupId, String artifactId, List<ProjectModule> allModules)
+            throws MojoFailureException {
         for (ProjectModule module : allModules) {
-            if (module.getGroupId().equals(groupId)
-             && module.getArtifactId().equals(artifactId)) {
+            if (module.getGroupId().equals(groupId) && module.getArtifactId().equals(artifactId)) {
                 return module;
             }
         }
         return null;
     }
 
-    private MavenProject findMavenProjectForModule(MavenProject mavenProject, List<MavenProject> reactorProjects, String moduleName) throws MojoFailureException {
+    private MavenProject findMavenProjectForModule(MavenProject mavenProject, List<MavenProject> reactorProjects,
+                                                   String moduleName) throws MojoFailureException {
         String qModuleName = mavenProject.getFile().getParentFile().getPath() + "\\" + moduleName;
         qModuleName = qModuleName.replace("\\", "/");
         for (MavenProject reactorProject : reactorProjects) {
             String reactorPath = reactorProject.getFile().getParentFile().getPath();
             reactorPath = reactorPath.replace("\\", "/");
-//            log.info("reactorProject: " + reactorPath);
+            // log.info("reactorProject: " + reactorPath);
             if (reactorPath.equalsIgnoreCase(qModuleName)) {
-//                log.info("qmodulename: " + qModuleName + " resolved to: " + reactorPath);
+                // log.info("qmodulename: " + qModuleName + " resolved to: " + reactorPath);
                 return reactorProject;
             }
         }
@@ -172,34 +160,7 @@ public class ConfigFileReader {
         }
     }
 
-    private void validateConfigFileWithJsonSchema(String fileContents) throws MojoFailureException {
-        try {
-            final JsonNode schemaNode = JsonLoader.fromResource("/schema.json");
-            final JsonSchemaFactory factory = JsonSchemaFactory.byDefault();
-            final JsonSchema schema = factory.getJsonSchema(schemaNode);
-            ProcessingReport report = schema.validate(JsonLoader.fromString(fileContents));
-            if (!report.isSuccess()) {
-                throw new MojoFailureException("Invalid release.json file");
-            }
-        } catch (IOException e) {
-            throw new MojoFailureException("IOException", e);
-        } catch (ProcessingException e) {
-            throw new MojoFailureException("ProcecingException", e);
-        }
-    }
-
-    /**
-     * Validate the config file for mandatory parameters.
-     * Validate the existence of directories.
-     * @param config -
-     */
-    private void validateConfigFile(Config config) {
-
-    }
-
-
     public String outputConfig(Config config) {
-//        log.info("Current project structure:");
         final List<ProjectModule> modules = config.getModules();
         return outputModules(modules, "");
     }

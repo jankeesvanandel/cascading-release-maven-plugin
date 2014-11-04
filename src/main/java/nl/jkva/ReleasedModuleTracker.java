@@ -3,11 +3,12 @@ package nl.jkva;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import org.apache.maven.plugin.MojoFailureException;
-import org.joda.time.DateTime;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -63,7 +64,7 @@ public class ReleasedModuleTracker {
         String newLine = System.getProperty("line.separator");
 
         StringBuilder sb = new StringBuilder();
-        sb.append(new DateTime()).append(newLine);
+        sb.append(new SimpleDateFormat("dd-MM-yyyy").format(new Date())).append(newLine);
         for (String releasedModule : releasedModules) {
             sb.append(releasedModule).append(newLine);
         }
