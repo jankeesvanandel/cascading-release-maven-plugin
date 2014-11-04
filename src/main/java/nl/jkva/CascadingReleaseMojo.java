@@ -15,6 +15,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.settings.Settings;
 import org.codehaus.plexus.util.StringUtils;
 
 import com.google.common.collect.ImmutableList;
@@ -37,6 +38,12 @@ public class CascadingReleaseMojo extends AbstractMojo {
     @Parameter(property = "outputFile", defaultValue = "${project.build.directory}/release-summary.txt", required = true)
     private File outputFile;
 
+    @Parameter(property = "parentPath")
+    private String parentPath;
+
+    @Parameter(property = "distPath", defaultValue = "")
+    private String distPath;
+
     @Component
     private MavenProject project;
 
@@ -46,14 +53,18 @@ public class CascadingReleaseMojo extends AbstractMojo {
     @Component
     private BuildPluginManager pluginManager;
 
+    @Parameter( defaultValue = "${settings}", readonly = true, required = true )
+    private Settings settings;
+
     private ProcessFactory processFactory;
     private Config config;
     private ConfigUtil configUtil;
     private ReleasedModuleTracker releasedModuleTracker = new ReleasedModuleTracker();
 
     public void execute() throws MojoExecutionException, MojoFailureException {
+        PromptUtil.settings = settings;
         ConfigFileReader configFileReader = new ConfigFileReader(getLog(), project);
-        config = configFileReader.readConfigFile(reactorProjects);
+        config = configFileReader.readConfigFile(parentPath, distPath, reactorProjects);
         config.setBasedir(basedir);
         String s = configFileReader.outputConfig(config);
 
@@ -138,7 +149,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
     }
 
     private boolean isInterestingStatusLine(final String line) {
-        return !line.contains("[INFO] Executing: cmd.exe")
+        return !line.contains("[INFO] Executing: ")
             && !line.contains("[INFO] Working directory: ");
     }
 

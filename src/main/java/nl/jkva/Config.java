@@ -8,20 +8,11 @@ import java.util.List;
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
 public class Config {
-    private String name;
     private String parentPath;
     private List<ProjectModule> modules = new ArrayList<ProjectModule>();
     private String distPath;
     private File projectBase;
     private File basedir;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
 
     public List<ProjectModule> getModules() {
         return modules;
@@ -36,7 +27,11 @@ public class Config {
     }
 
     public void setParentPath(String parentPath) {
-        this.parentPath = parentPath;
+        if (parentPath == null || parentPath.isEmpty()) {
+            this.parentPath = null;
+        } else {
+            this.parentPath = parentPath;
+        }
     }
 
     public String getDistPath() {
@@ -44,7 +39,11 @@ public class Config {
     }
 
     public void setDistPath(String distPath) {
-        this.distPath = distPath;
+        if (distPath == null) {
+            this.distPath = "";
+        } else {
+            this.distPath = distPath;
+        }
     }
 
     public File getProjectBase() {

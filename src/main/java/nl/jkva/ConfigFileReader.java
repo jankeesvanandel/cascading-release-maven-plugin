@@ -21,15 +21,16 @@ public class ConfigFileReader {
         this.project = project;
     }
 
-    public Config readConfigFile(List<MavenProject> reactorProjects) throws MojoFailureException {
+    public Config readConfigFile(String parentPath, String distPath, List<MavenProject> reactorProjects) throws MojoFailureException {
         final Config config;
         try {
             config = new Config();
-            config.setParentPath("");
-            config.setDistPath("");
-            config.setName("TODO");
+            config.setParentPath(parentPath);
+            config.setDistPath(distPath);
             config.setProjectBase(project.getBasedir().getCanonicalFile());
 
+            MavenProject moduleProject = findMavenProjectForModule(project, reactorProjects, "");
+            config.getModules().add(createProjectModule(project, moduleProject));
             setModules(project, reactorProjects, config.getModules());
             setModuleParents(config);
             setReleasableModuleParents(config);
@@ -45,25 +46,34 @@ public class ConfigFileReader {
         List<String> moduleNames = mavenProject.getModules();
         for (String moduleName : moduleNames) {
             MavenProject moduleProject = findMavenProjectForModule(mavenProject, reactorProjects, moduleName);
-            ProjectModule projectModule = new ProjectModule();
-            projectModule.setGroupId(moduleProject.getGroupId());
-            projectModule.setArtifactId(moduleProject.getArtifactId());
-            projectModule.setRelatedMavenProject(moduleProject);
-
-            String modulePath;
-            String projectPath;
-            try {
-                modulePath = moduleProject.getFile().getParentFile().getCanonicalPath();
-                projectPath = mavenProject.getFile().getParentFile().getCanonicalPath();
-            } catch (IOException e) {
-                throw new MojoFailureException("", e);
-            }
-            String relativeModulePath = modulePath.replace(projectPath, "").replace("\\", "/").substring(1);
-            projectModule.setPath(relativeModulePath);
+            ProjectModule projectModule = createProjectModule(mavenProject, moduleProject);
 
             modules.add(projectModule);
             setModules(moduleProject, reactorProjects, projectModule.getModules());
         }
+    }
+
+    private ProjectModule createProjectModule(MavenProject mavenProject, MavenProject moduleProject) throws MojoFailureException {
+        ProjectModule projectModule = new ProjectModule();
+        projectModule.setGroupId(moduleProject.getGroupId());
+        projectModule.setArtifactId(moduleProject.getArtifactId());
+        projectModule.setRelatedMavenProject(moduleProject);
+
+        String modulePath;
+        String projectPath;
+        try {
+            modulePath = moduleProject.getFile().getParentFile().getCanonicalPath();
+            projectPath = mavenProject.getFile().getParentFile().getCanonicalPath();
+        } catch (IOException e) {
+            throw new MojoFailureException("", e);
+        }
+//        log.info("asdasdas " + modulePath + " 123 " + projectPath);
+        String relativeModulePath = modulePath.replace(projectPath, "").replace("\\", "/");
+        if (!relativeModulePath.isEmpty()) {
+            relativeModulePath = relativeModulePath.substring(1);
+        }
+        projectModule.setPath(relativeModulePath);
+        return projectModule;
     }
 
     private void setReleasableModuleParents(Config config) throws MojoFailureException {
@@ -97,13 +107,12 @@ public class ConfigFileReader {
                 throw new MojoFailureException("Null related maven project: " + module);
             }
             MavenProject parent = relatedMavenProject.getParent();
-            if (parent == null) {
-                throw new MojoFailureException("Null parent maven project for module: " + module);
+            if (parent != null) {
+                String groupId = parent.getGroupId();
+                String artifactId = parent.getArtifactId();
+                ProjectModule parentModule = findProjectModule(groupId, artifactId, allModules);
+                module.setParent(parentModule);
             }
-            String groupId = parent.getGroupId();
-            String artifactId = parent.getArtifactId();
-            ProjectModule parentModule = findProjectModule(groupId, artifactId, allModules);
-            module.setParent(parentModule);
         }
     }
 
@@ -121,10 +130,13 @@ public class ConfigFileReader {
                                                    String moduleName) throws MojoFailureException {
         String qModuleName = mavenProject.getFile().getParentFile().getPath() + "\\" + moduleName;
         qModuleName = qModuleName.replace("\\", "/");
+        if (qModuleName.endsWith("/")) {
+            qModuleName = qModuleName.substring(0, qModuleName.length() - 1);
+        }
         for (MavenProject reactorProject : reactorProjects) {
             String reactorPath = reactorProject.getFile().getParentFile().getPath();
             reactorPath = reactorPath.replace("\\", "/");
-            // log.info("reactorProject: " + reactorPath);
+//            log.info("reactorProject: " + reactorPath + " ||| " + qModuleName);
             if (reactorPath.equalsIgnoreCase(qModuleName)) {
                 // log.info("qmodulename: " + qModuleName + " resolved to: " + reactorPath);
                 return reactorProject;

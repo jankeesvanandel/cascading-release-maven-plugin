@@ -1,18 +1,14 @@
 package nl.jkva;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
+
+import java.io.IOException;
+import java.util.*;
 
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
@@ -44,28 +40,31 @@ public class ParentReleaseHelper {
      */
     public void releaseParentIfNeeded() throws MojoFailureException, MojoExecutionException, IOException {
         final Map<String, Set<String>> versionsPerParentPom = validateThatAllModulesShareTheSameParentVersion();
+        final String parentPath = config.getParentPath();
 
-        final MavenProject parentProject = configUtil.getMavenProjectFromPath(config.getParentPath());
-        final String latestParentVersion = parentProject.getVersion();
-        final String usedParentVersion = getUsedVersionForProject(parentProject, versionsPerParentPom);
+        if (!versionsPerParentPom.isEmpty() && parentPath != null) {
+            final MavenProject parentProject = configUtil.getMavenProjectFromPath(parentPath);
+            final String latestParentVersion = parentProject.getVersion();
+            final String usedParentVersion = getUsedVersionForProject(parentProject, versionsPerParentPom);
 
-        if (!usedParentVersion.equals(latestParentVersion)) {
-            String input = PromptUtil.promptWithDefault("Project parent [" + usedParentVersion + "] is not pointing " + //
-                            "to the latest version [" + latestParentVersion + "]. This doesn't have to be an issue, " + //
-                            " the release will be made with the current parent version. Continue release?", "y");
-            if (!input.isEmpty() && !input.equalsIgnoreCase("y")) {
-                throw new MojoFailureException("Release aborted by user");
+            if (!usedParentVersion.equals(latestParentVersion)) {
+                String input = PromptUtil.promptWithDefault("Project parent [" + usedParentVersion + "] is not " +
+                        "pointing to the latest version [" + latestParentVersion + "]. This doesn't have to be an " +
+                        "issue, the release will be made with the current parent version. Continue release?", "y");
+                if (!input.isEmpty() && !input.equalsIgnoreCase("y")) {
+                    throw new MojoFailureException("Release aborted by user");
+                }
             }
-        }
 
-        final Artifact parentArtifact = project.getParentArtifact();
-        if (parentArtifact.isSnapshot()) {
-            final String groupId = parentArtifact.getGroupId();
-            final String artifactId = parentArtifact.getArtifactId();
-            if (!releasedModuleTracker.containsReleasedModule(groupId, artifactId)) {
-                releaseParent(parentArtifact);
+            final Artifact parentArtifact = project.getParentArtifact();
+            if (parentArtifact.isSnapshot()) {
+                final String groupId = parentArtifact.getGroupId();
+                final String artifactId = parentArtifact.getArtifactId();
+                if (!releasedModuleTracker.containsReleasedModule(groupId, artifactId)) {
+                    releaseParent(parentArtifact, parentPath);
+                }
+                updateChildProjectsWithLatestParentVersion();
             }
-            updateChildProjectsWithLatestParentVersion();
         }
     }
 
@@ -73,7 +72,7 @@ public class ParentReleaseHelper {
             throws MojoFailureException {
         final String key = ConfigUtil.createProjectIdentifier(parent);
         final Set<String> versions = versionsPerParentPom.get(key);
-        if (!versions.isEmpty()) {
+        if (versions != null && !versions.isEmpty()) {
             return versions.iterator().next();
         } else {
             throw new MojoFailureException("Versions is empty");
@@ -81,18 +80,20 @@ public class ParentReleaseHelper {
     }
 
     private Map<String, Set<String>> validateThatAllModulesShareTheSameParentVersion() throws MojoFailureException {
-        Map<String, Set<String>> versionsPerParentPom = new HashMap<String, Set<String>>();
+        final Map<String, Set<String>> versionsPerParentPom = new HashMap<String, Set<String>>();
         final List<MavenProject> projects = session.getProjects();
         for (MavenProject project : projects) {
             final MavenProject parent = project.getParent();
-            final String key = ConfigUtil.createProjectIdentifier(parent);
-            Set<String> versions = versionsPerParentPom.get(key);
-            if (versions == null) {
-                versions = new HashSet<String>();
-                versionsPerParentPom.put(key, versions);
-            }
+            if (parent != null) {
+                final String key = ConfigUtil.createProjectIdentifier(parent);
+                Set<String> versions = versionsPerParentPom.get(key);
+                if (versions == null) {
+                    versions = new HashSet<String>();
+                    versionsPerParentPom.put(key, versions);
+                }
 
-            versions.add(parent.getVersion());
+                versions.add(parent.getVersion());
+            }
         }
         log.info("All parent versions among modules: " + versionsPerParentPom);
         if (thereIsOnlyOneVersionPerParentArtifact(versionsPerParentPom)) {
@@ -128,8 +129,8 @@ public class ParentReleaseHelper {
      * TODO: Future idea: Somehow validate the DistributionManagement section and nexus authorisations, maybe with a
      * dummy deploy-file command? Goal is to check that the nexus credentials are there and the password is up to date.
      */
-    private void releaseParent(Artifact parentArtifact) throws MojoFailureException, MojoExecutionException, IOException {
-        releaseModule("Parent", config.getParentPath(), parentArtifact);
+    private void releaseParent(Artifact parentArtifact, String parentPath) throws MojoFailureException, MojoExecutionException, IOException {
+        releaseModule("Parent", parentPath, parentArtifact);
     }
 
     private void releaseModule(final String moduleName, final String path, Artifact parentArtifact) throws MojoFailureException {
@@ -141,7 +142,7 @@ public class ParentReleaseHelper {
 
         int exitCode =
                 mavenInvoker
-                    .execute("clean install scm:update release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
+                        .execute("clean install scm:update release:prepare release:perform --batch-mode -DautoVersionSubmodules=true");
         log.info(moduleName + " release exited with code " + exitCode);
         releasedModuleTracker.addReleasedModule(parentArtifact.getGroupId(), parentArtifact.getArtifactId(), parentArtifact.getVersion());
     }
@@ -157,7 +158,7 @@ public class ParentReleaseHelper {
                 // TODO: Add the version number of the parent to the commit message
                 int exitCode =
                         mavenInvoker
-                            .execute("versions:update-parent versions:commit scm:checkin -Dmessage=\"Update_parent_to_latest_release_version\"");
+                                .execute("versions:update-parent versions:commit scm:checkin -Dmessage=\"Update_parent_to_latest_release_version\"");
                 log.info("Update parent for " + module.getGroupId() + ":" + module.getArtifactId()
                         + ". Exit code=" + exitCode);
             }

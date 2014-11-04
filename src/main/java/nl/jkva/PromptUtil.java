@@ -1,5 +1,7 @@
 package nl.jkva;
 
+import org.apache.maven.settings.Settings;
+
 import java.io.Console;
 import java.io.File;
 
@@ -7,15 +9,18 @@ import java.io.File;
  * @author Jan-Kees van Andel - @jankeesvanandel
  */
 public class PromptUtil {
+
+    public static Settings settings;
+
     static String promptWithDefault(String promptMessage, String defaultValue) {
-        if (System.getProperty("batchMode", "false").equals("true")) {
-            return defaultValue;
-        } else {
+        if (settings.isInteractiveMode()) {
             String input = prompt(String.format(promptMessage + " [%s]:", defaultValue));
             if (input.isEmpty()) {
                 input = defaultValue;
             }
             return input;
+        } else {
+            return defaultValue;
         }
     }
 

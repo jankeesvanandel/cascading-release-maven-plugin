@@ -127,10 +127,12 @@ public class CascadingDependencyReleaseHelper {
         MavenProject mavenProject = configUtil.getMavenProjectFromPath(path);
 
         final MavenProject parentProject = mavenProject.getParent();
-        final String parentVersion = parentProject.getVersion();
-        if (isSnapshot(parentVersion)) {
-            final ProjectModule parentModule = configUtil.getProjectModuleFromMavenProject(parentProject);
-            releaseParentIfNeeded(parentModule, module);
+        if (parentProject != null) {
+            final String parentVersion = parentProject.getVersion();
+            if (isSnapshot(parentVersion)) {
+                final ProjectModule parentModule = configUtil.getProjectModuleFromMavenProject(parentProject);
+                releaseParentIfNeeded(parentModule, module);
+            }
         }
 
         MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
@@ -179,7 +181,7 @@ public class CascadingDependencyReleaseHelper {
 
     private String getReleasedVersionNumberFromProcess(ProjectModule module, ImmutableList<String> output) throws MojoFailureException {
         final String uploadingKeyword = "Uploading";
-        final String regex = ".* " + uploadingKeyword + ": .*\\/(.*)\\-(.*)\\.pom";
+        final String regex = ".* " + uploadingKeyword + ": .*\\/" + module.getArtifactId() + "\\/(.*)\\/" + module.getArtifactId() + "\\-(.*)\\.pom";
         //        final String regex = "\\[INFO\\]\\ \\[INFO\\]\\ Building " + module.getArtifactId() + " (.*)";
         final Pattern pattern = Pattern.compile(regex);
         for (String line : output) {
@@ -192,11 +194,7 @@ public class CascadingDependencyReleaseHelper {
             if (!matcher.matches()) {
                 continue;
             }
-            final String artifactIdInOutput = matcher.group(1);
-            if (!artifactIdInOutput.equals(module.getArtifactId())) {
-                continue;
-            }
-            final String version = matcher.group(2);
+            final String version = matcher.group(1);
             log.info("Found version number in release output: [" + version + "]");
             return version;
         }
