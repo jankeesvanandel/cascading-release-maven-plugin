@@ -4,12 +4,46 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>nl.jkva</groupId>
+    <parent>
+        <groupId>org.sonatype.oss</groupId>
+        <artifactId>oss-parent</artifactId>
+        <version>9</version>
+    </parent>
+
+    <groupId>nl.jkva.maven-plugins</groupId>
     <artifactId>cascading-release-maven-plugin</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>maven-plugin</packaging>
 
     <name>Cascading Release Maven Plugin</name>
+    <description>
+        With the Cascading Release Maven Plugin you can automatically release multiple dependent Maven projects in one
+        go, automatically dealing with internal SNAPSHOT dependencies, eliminating the cumbersome manual steps that are
+        sometimes required for such a release.
+    </description>
+    <url>https://github.com/jankeesvanandel/cascading-release-maven-plugin</url>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Jan-Kees van Andel</name>
+            <email>jankeesvanandel@gmail.com</email>
+            <organization>JPoint</organization>
+            <organizationUrl>http://www.jpoint.nl</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git@github.com:jankeesvanandel/cascading-release-maven-plugin.git</connection>
+        <developerConnection>scm:git:git@github.com:jankeesvanandel/cascading-release-maven-plugin.git</developerConnection>
+        <url>git@github.com:jankeesvanandel/cascading-release-maven-plugin.git</url>
+    </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -71,6 +105,20 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>1.5</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>2.4.2</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
