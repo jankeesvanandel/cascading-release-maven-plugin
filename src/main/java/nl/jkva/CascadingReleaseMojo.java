@@ -26,9 +26,6 @@ import com.google.common.collect.ImmutableList;
 @Mojo(name = "cascading-release", requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME, inheritByDefault = false, aggregator = true)
 public class CascadingReleaseMojo extends AbstractMojo {
 
-    @Parameter(property = "configFile", required = true, defaultValue = "release.json")
-    private File cfgFile;
-
     @Parameter(defaultValue = "${reactorProjects}", readonly = true, required = true)
     private List<MavenProject> reactorProjects;
 
@@ -59,7 +56,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
     private ProcessFactory processFactory;
     private Config config;
     private ConfigUtil configUtil;
-    private ReleasedModuleTracker releasedModuleTracker = new ReleasedModuleTracker();
+    private ReleasedModuleTracker releasedModuleTracker;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         PromptUtil.settings = settings;
@@ -70,6 +67,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
 
         processFactory = new ProcessFactory(getLog(), config.getProjectBase());
         configUtil = new ConfigUtil(config, getLog(), session);
+        releasedModuleTracker = new ReleasedModuleTracker(outputFile);
 
         try {
             validateSystemSettings();
@@ -85,7 +83,7 @@ public class CascadingReleaseMojo extends AbstractMojo {
             final ProjectModule distModule = configUtil.getProjectModuleFromMavenProject(releasableProject);
             cascadingDependencyReleaseHelper.releaseModuleAndUpdateDependencies(distModule);
 
-            releasedModuleTracker.writeToFile(outputFile);
+            releasedModuleTracker.writeToFile();
         } catch (IOException e) {
             throw new MojoFailureException("IO error", e);
         }

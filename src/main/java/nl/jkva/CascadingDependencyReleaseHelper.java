@@ -55,7 +55,6 @@ public class CascadingDependencyReleaseHelper {
         for (Dependency dependency : allModuleDependencies) {
             if (isSnapshot(dependency)) {
                 final ProjectModule module = getReleasableDependency(dependency);
-                // If it's in the JSON file, it might be releasable, otherwise it's not.
                 if (module != null) {
                     if (!isMultiModuleBuildInternalDependency(dependency, mavenProject)) {
                         ProjectModule moduleToRelease;
@@ -149,6 +148,7 @@ public class CascadingDependencyReleaseHelper {
                 releasedModules.add(releasedModule);
                 releasedModule.setReleasedVersion(releasedVersion);
             }
+            releasedModuleTracker.writeToFile();
             log.info(createProjectIdentifier(module) + " release exited with code " + exitCode);
             return flatListOfAllModules;
         } else {

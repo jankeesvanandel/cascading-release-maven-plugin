@@ -22,6 +22,11 @@ public class ReleasedModuleTracker {
     private static final String MODULE_TEMPLATE = "%s:%s [%s] -> [%s]";
 
     private final List<String> releasedModules = new ArrayList<String>();
+    private final File outputFile;
+
+    public ReleasedModuleTracker(final File outputFile) {
+        this.outputFile = outputFile;
+    }
 
     public void addReleasedModule(String groupId, String artifactId, String oldVersion) {
         addReleasedModule(groupId, artifactId, oldVersion, oldVersion.replace("-SNAPSHOT", ""));
@@ -60,7 +65,7 @@ public class ReleasedModuleTracker {
         return null;
     }
 
-    public void writeToFile(File file) throws MojoFailureException {
+    public void writeToFile() throws MojoFailureException {
         String newLine = System.getProperty("line.separator");
 
         StringBuilder sb = new StringBuilder();
@@ -69,11 +74,11 @@ public class ReleasedModuleTracker {
             sb.append(releasedModule).append(newLine);
         }
         try {
-            if (!file.exists()) {
-                Files.createParentDirs(file);
-                file.createNewFile();
+            if (!outputFile.exists()) {
+                Files.createParentDirs(outputFile);
+                outputFile.createNewFile();
             }
-            Files.append(sb.toString(), file, Charsets.UTF_8);
+            Files.append(sb.toString(), outputFile, Charsets.UTF_8);
         }catch (IOException e) {
             throw new MojoFailureException("Error writing release summary to file", e);
         }

@@ -45,16 +45,19 @@ This should be easier and this is where this plugin steps in. It allows you to h
 # Workings
 Basically what you would like to release is an EAR, maybe with some config files and maybe accompanied with some docs, like an install guide, release notes, etc.
 
-Next to the EAR POM.xml then you need to specify a JSON file which contains some meta information about the project you would like to release. Below is a small example of such a file:
-
-    {
-        "name": "Example releasable module",
-        "parentPath": "parent",
-        "distPath": "framework/framework-ear"
-    }
+In the EAR POM.xml you need to specify some meta information about the project you would like to release. Below is a small example of such a configuration:
+    <plugin>
+        <groupId>nl.jkva</groupId>
+        <artifactId>cascading-release-maven-plugin</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <configuration>
+            <distPath>release</distPath>
+            <parentPath>parent</parentPath>
+        </configuration>
+    </plugin>
 
 If you have this file, all you have to do, is run the plugin from your EAR directory, like this:
-mvn nl.jkva:cascading-release-maven-plugin:1.0-SNAPSHOT:cascading-release -Dversion=Windows7
+mvn nl.jkva:cascading-release-maven-plugin:1.0-SNAPSHOT:cascading-release
 
 The version (currently mandatory) can be used for specifying a functional version for your release. Currently this parameter doesn't do anything.
 
