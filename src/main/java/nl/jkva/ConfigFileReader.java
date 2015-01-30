@@ -84,18 +84,14 @@ public class ConfigFileReader {
         }
     }
 
-    private boolean determineReleasableModuleParent(ProjectModule module) throws MojoFailureException {
-        try {
-            File pomFile = module.getRelatedMavenProject().getFile();
-            List<String> strings = Files.readLines(pomFile, Charsets.UTF_8);
-            for (String string : strings) {
-                if (string.contains("<scm>")) {
-                    return true;
-                }
-            }
+    // If this maven project is part of a larger multi-module build, it should never be released separately,
+    // but always as part of the full multi-module build.
+    private boolean determineReleasableModuleParent(final ProjectModule module) throws MojoFailureException {
+        final ProjectModule parentModule = module.getParent();
+        if (parentModule.getModules().contains(module)) {
             return false;
-        } catch (IOException e) {
-            throw new MojoFailureException("IOException", e);
+        } else {
+            return true;
         }
     }
 
