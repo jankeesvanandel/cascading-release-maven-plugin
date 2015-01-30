@@ -1,4 +1,4 @@
-package nl.jkva;
+package org.jkva;
 
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel

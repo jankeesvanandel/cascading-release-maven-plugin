@@ -1,4 +1,4 @@
-package nl.jkva;
+package org.jkva;
 
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.plugin.MojoExecutionException;

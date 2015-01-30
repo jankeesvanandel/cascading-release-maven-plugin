@@ -1,4 +1,4 @@
-package nl.jkva;
+package org.jkva;
 
 import java.io.BufferedReader;
 import java.io.File;

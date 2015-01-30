@@ -1,4 +1,4 @@
-package nl.jkva;
+package org.jkva;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;

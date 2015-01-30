@@ -1,4 +1,4 @@
-package nl.jkva;
+package org.jkva;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.maven.model.Dependency;
@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static nl.jkva.ConfigUtil.createProjectIdentifier;
+import static org.jkva.ConfigUtil.createProjectIdentifier;
 
 /**
  * @author Jan-Kees van Andel - @jankeesvanandel
