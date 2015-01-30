@@ -112,7 +112,7 @@ public class CascadingDependencyReleaseHelper {
     public void releaseModuleAndUpdateDependencies(ProjectModule module) throws MojoFailureException {
         List<ProjectModule> releasedModules = releaseModule(module);
 
-        updateProjectsWithLatestDependencyVersions(releasedModules, releasedModules.get(0).getReleasedVersion());
+        updateProjectsWithLatestDependencyVersions(releasedModules);
     }
 
     private List<ProjectModule> releaseModule(ProjectModule module) throws MojoFailureException {
@@ -206,36 +206,53 @@ public class CascadingDependencyReleaseHelper {
      * Update all child poms.
      * Commit the child poms.
      */
-    private void updateProjectsWithLatestDependencyVersions(List<ProjectModule> releasedModules, String version) throws MojoFailureException {
+    private void updateProjectsWithLatestDependencyVersions(List<ProjectModule> releasedModules) throws MojoFailureException {
         log.info("Updating dependent modules for: " + releasedModules);
         for (ProjectModule module : configUtil.getFlatListOfAllModules()) {
             log.debug("Trying: " + module + "...");
             final MavenProject dependentMavenProject = configUtil.getMavenProjectFromPath(module.getPath());
             if (doesProjectContainReleasedModule(dependentMavenProject, releasedModules)) {
                 log.debug("Updating versions...");
-                updateVersionsInProjectForModule(dependentMavenProject, releasedModules, version);
+                updateVersionsInProjectForModule(dependentMavenProject, releasedModules);
             }
 
             final List<MavenProject> subModules = configUtil.getAllModules(dependentMavenProject);
             for (MavenProject dependentSubModule : subModules) {
                 if (doesProjectContainReleasedModule(dependentSubModule, releasedModules)) {
-                    updateVersionsInProjectForModule(dependentSubModule, releasedModules, version);
+                    updateVersionsInProjectForModule(dependentSubModule, releasedModules);
                 }
             }
         }
     }
 
-    private void updateVersionsInProjectForModule(MavenProject mavenProject, List<ProjectModule> releasedModules, String version) throws MojoFailureException {
+    private void updateVersionsInProjectForModule(MavenProject mavenProject, List<ProjectModule> releasedModules) throws MojoFailureException {
         final ProjectModule module = configUtil.getProjectModuleFromMavenProject(mavenProject);
         final String path = configUtil.getFullPathFromBase(module, config.getBasedir());
         final MavenInvoker mavenInvoker = processFactory.createMavenInvoker(path);
 
         final String includeArg = getIncludedArtifactsForVersionPlugin(releasedModules);
         final String includePropArg = getIncludedPropertiesForVersionPlugin(module, releasedModules);
-        final String commitMsg = "Update_" + createProjectIdentifier(mavenProject) + "_to_" + version;
+
+        final String commitMsg = createCommitMessage(releasedModules);
         int exitCode = mavenInvoker.execute("versions:update-properties versions:use-latest-versions versions:commit " + //
                 "scm:checkin -Dmessage=\"" + commitMsg + "\" " + includeArg + " " + includePropArg);
         log.info("Update dependency for " + mavenProject.getGroupId() + ":" + mavenProject.getArtifactId() + ". Exit code=" + exitCode);
+    }
+
+    private String createCommitMessage(final List<ProjectModule> releasedModules) {
+        final StringBuilder commitMsg = new StringBuilder();
+        boolean first = true;
+        for (ProjectModule releasedModule : releasedModules) {
+            if (first) {
+                commitMsg.append("_");
+                first = false;
+            }
+            commitMsg.append("Update_");
+            commitMsg.append(createProjectIdentifier(releasedModule));
+            commitMsg.append("_to_");
+            commitMsg.append(releasedModule.getReleasedVersion());
+        }
+        return commitMsg.toString();
     }
 
     private String getIncludedArtifactsForVersionPlugin(List<ProjectModule> releasedModules) throws MojoFailureException {
